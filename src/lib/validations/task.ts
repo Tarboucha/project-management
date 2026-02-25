@@ -1,0 +1,25 @@
+import { z } from "zod"
+
+export const createTaskSchema = z.object({
+  objective: z.string().min(1, "Objective is required").max(255),
+  details: z.string().optional(),
+  milestoneId: z.string().uuid("Invalid milestone ID").optional(),
+  priority: z.enum(["LOW", "NORMAL", "MEDIUM", "HIGH", "URGENT"]).default("NORMAL"),
+  startDate: z.string().date("Invalid date format (YYYY-MM-DD)"),
+  endDate: z.string().date("Invalid date format (YYYY-MM-DD)").optional(),
+  budgetEstimated: z.number().positive("Budget must be positive").optional(),
+})
+export type CreateTaskInput = z.infer<typeof createTaskSchema>
+
+export const updateTaskSchema = z.object({
+  objective: z.string().min(1).max(255).optional(),
+  details: z.string().optional(),
+  milestoneId: z.string().uuid("Invalid milestone ID").nullable().optional(),
+  priority: z.enum(["LOW", "NORMAL", "MEDIUM", "HIGH", "URGENT"]).optional(),
+  state: z.enum(["ACTIVE", "ENDED"]).optional(),
+  progress: z.number().min(0).max(100).optional(),
+  startDate: z.string().date("Invalid date format (YYYY-MM-DD)").optional(),
+  endDate: z.string().date("Invalid date format (YYYY-MM-DD)").optional(),
+  budgetEstimated: z.number().positive("Budget must be positive").optional(),
+})
+export type UpdateTaskInput = z.infer<typeof updateTaskSchema>

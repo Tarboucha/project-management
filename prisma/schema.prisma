@@ -1,0 +1,339 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum SystemRole {
+  ADMIN
+  USER
+
+  @@map("system_role")
+}
+
+enum ProjectRole {
+  DIRECTOR
+  MANAGER
+  CONTRIBUTOR
+
+  @@map("project_role")
+}
+
+enum EntityState {
+  ACTIVE
+  ENDED
+
+  @@map("entity_state")
+}
+
+enum TaskPriority {
+  LOW
+  NORMAL
+  MEDIUM
+  HIGH
+  URGENT
+
+  @@map("task_priority")
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  END
+  DELETE
+
+  @@map("audit_action")
+}
+
+// ============================================================
+// ACTOR
+// ============================================================
+
+model Actor {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  supabaseUserId  String?   @unique @map("supabase_user_id") @db.Uuid
+  firstName       String    @map("first_name") @db.VarChar(100)
+  lastName        String    @map("last_name") @db.VarChar(100)
+  email           String    @unique @db.VarChar(255)
+  systemRole      SystemRole @default(USER) @map("system_role")
+  isActive        Boolean   @default(true) @map("is_active")
+  fromAd          Boolean   @default(false) @map("from_ad")
+  hourlyRate      Decimal?  @map("hourly_rate") @db.Decimal(8, 2)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz
+
+  // Relations
+  createdPrograms     Program[]       @relation("ProgramCreatedBy")
+  createdProjects     Project[]       @relation("ProjectCreatedBy")
+  createdMilestones   Milestone[]     @relation("MilestoneCreatedBy")
+  createdTasks        Task[]          @relation("TaskCreatedBy")
+  createdDeliverables Deliverable[]   @relation("DeliverableCreatedBy")
+  projectMembers      ProjectMember[]
+  taskContributions   TaskContributor[]
+  timeEntries         TimeEntry[]
+  auditLogs           AuditLog[]
+
+  @@map("actor")
+}
+
+// ============================================================
+// PROGRAM
+// ============================================================
+
+model Program {
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String      @db.VarChar(255)
+  description     String?
+  version         Int         @default(1)
+  state           EntityState @default(ACTIVE)
+  startDate       DateTime    @map("start_date") @db.Date
+  endDate         DateTime?   @map("end_date") @db.Date
+  budgetEstimated Decimal?    @map("budget_estimated") @db.Decimal(12, 2)
+  currency        String?     @default("EUR") @db.VarChar(3)
+  createdById     String      @map("created_by_id") @db.Uuid
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  modifiedAt      DateTime?   @map("modified_at") @db.Timestamptz
+  deletedAt       DateTime?   @map("deleted_at") @db.Timestamptz
+
+  // Relations
+  createdBy  Actor     @relation("ProgramCreatedBy", fields: [createdById], references: [id])
+  projects   Project[]
+
+  @@map("program")
+}
+
+// ============================================================
+// PROJECT
+// ============================================================
+
+model Project {
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String      @db.VarChar(255)
+  objective       String?
+  programId       String      @map("program_id") @db.Uuid
+  version         Int         @default(1)
+  state           EntityState @default(ACTIVE)
+  progress        Int         @default(0) @db.SmallInt
+  startDate       DateTime    @map("start_date") @db.Date
+  endDate         DateTime?   @map("end_date") @db.Date
+  budgetEstimated Decimal?    @map("budget_estimated") @db.Decimal(12, 2)
+  createdById     String      @map("created_by_id") @db.Uuid
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  modifiedAt      DateTime?   @map("modified_at") @db.Timestamptz
+  deletedAt       DateTime?   @map("deleted_at") @db.Timestamptz
+
+  // Relations
+  program    Program         @relation(fields: [programId], references: [id])
+  createdBy  Actor           @relation("ProjectCreatedBy", fields: [createdById], references: [id])
+  members    ProjectMember[]
+  milestones Milestone[]
+  tasks      Task[]
+
+  @@map("project")
+}
+
+// ============================================================
+// PROJECT MEMBER
+// ============================================================
+
+model ProjectMember {
+  projectId  String      @map("project_id") @db.Uuid
+  actorId    String      @map("actor_id") @db.Uuid
+  role       ProjectRole
+  assignedAt DateTime    @default(now()) @map("assigned_at") @db.Timestamptz
+
+  // Relations
+  project Project @relation(fields: [projectId], references: [id])
+  actor   Actor   @relation(fields: [actorId], references: [id])
+
+  @@id([projectId, actorId])
+  @@map("project_member")
+}
+
+// ============================================================
+// MILESTONE
+// ============================================================
+
+model Milestone {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String    @db.VarChar(255)
+  description String?
+  projectId   String    @map("project_id") @db.Uuid
+  version     Int       @default(1)
+  dueDate     DateTime  @map("due_date") @db.Date
+  completedAt DateTime? @map("completed_at") @db.Timestamptz
+  createdById String    @map("created_by_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  modifiedAt  DateTime? @map("modified_at") @db.Timestamptz
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz
+
+  // Relations
+  project   Project @relation(fields: [projectId], references: [id])
+  createdBy Actor   @relation("MilestoneCreatedBy", fields: [createdById], references: [id])
+  tasks     Task[]
+
+  @@map("milestone")
+}
+
+// ============================================================
+// TASK
+// ============================================================
+
+model Task {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  objective       String       @db.VarChar(255)
+  details         String?
+  projectId       String       @map("project_id") @db.Uuid
+  milestoneId     String?      @map("milestone_id") @db.Uuid
+  priority        TaskPriority @default(NORMAL)
+  version         Int          @default(1)
+  state           EntityState  @default(ACTIVE)
+  progress        Int          @default(0) @db.SmallInt
+  taskOrder       Int          @default(0) @map("task_order")
+  startDate       DateTime     @map("start_date") @db.Date
+  endDate         DateTime?    @map("end_date") @db.Date
+  budgetEstimated Decimal?     @map("budget_estimated") @db.Decimal(12, 2)
+  createdById     String       @map("created_by_id") @db.Uuid
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  modifiedAt      DateTime?    @map("modified_at") @db.Timestamptz
+  deletedAt       DateTime?    @map("deleted_at") @db.Timestamptz
+
+  // Relations
+  project      Project           @relation(fields: [projectId], references: [id])
+  milestone    Milestone?        @relation(fields: [milestoneId], references: [id])
+  createdBy    Actor             @relation("TaskCreatedBy", fields: [createdById], references: [id])
+  contributors TaskContributor[]
+  dependsOn    TaskDependency[]  @relation("TaskDependsOn")
+  dependedBy   TaskDependency[]  @relation("TaskDependedBy")
+  timeEntries  TimeEntry[]
+  deliverables Deliverable[]
+
+  @@map("task")
+}
+
+// ============================================================
+// TASK CONTRIBUTOR
+// ============================================================
+
+model TaskContributor {
+  taskId     String   @map("task_id") @db.Uuid
+  actorId    String   @map("actor_id") @db.Uuid
+  assignedAt DateTime @default(now()) @map("assigned_at") @db.Timestamptz
+
+  // Relations
+  task  Task  @relation(fields: [taskId], references: [id])
+  actor Actor @relation(fields: [actorId], references: [id])
+
+  @@id([taskId, actorId])
+  @@map("task_contributor")
+}
+
+// ============================================================
+// TASK DEPENDENCY
+// ============================================================
+
+model TaskDependency {
+  taskId      String   @map("task_id") @db.Uuid
+  dependsOnId String   @map("depends_on_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  task      Task @relation("TaskDependsOn", fields: [taskId], references: [id])
+  dependsOn Task @relation("TaskDependedBy", fields: [dependsOnId], references: [id])
+
+  @@id([taskId, dependsOnId])
+  @@map("task_dependency")
+}
+
+// ============================================================
+// TIME ENTRY
+// ============================================================
+
+model TimeEntry {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  taskId      String    @map("task_id") @db.Uuid
+  actorId     String    @map("actor_id") @db.Uuid
+  hours       Decimal   @db.Decimal(5, 2)
+  hourlyRate  Decimal?  @map("hourly_rate") @db.Decimal(8, 2)
+  description String?
+  workDate    DateTime  @map("work_date") @db.Date
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  modifiedAt  DateTime? @map("modified_at") @db.Timestamptz
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz
+
+  // Relations
+  task  Task  @relation(fields: [taskId], references: [id])
+  actor Actor @relation(fields: [actorId], references: [id])
+
+  @@map("time_entry")
+}
+
+// ============================================================
+// DELIVERABLE
+// ============================================================
+
+model Deliverable {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String    @db.VarChar(255)
+  type        String?   @db.VarChar(100)
+  taskId      String    @map("task_id") @db.Uuid
+  version     Int       @default(1)
+  createdById String    @map("created_by_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  modifiedAt  DateTime? @map("modified_at") @db.Timestamptz
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz
+
+  // Relations
+  task        Task         @relation(fields: [taskId], references: [id])
+  createdBy   Actor        @relation("DeliverableCreatedBy", fields: [createdById], references: [id])
+  attachments Attachment[]
+
+  @@map("deliverable")
+}
+
+// ============================================================
+// ATTACHMENT
+// ============================================================
+
+model Attachment {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  deliverableId String   @map("deliverable_id") @db.Uuid
+  name          String   @db.VarChar(255)
+  fileUrl       String?  @map("file_url")
+  fileType      String?  @map("file_type") @db.VarChar(100)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  deliverable Deliverable @relation(fields: [deliverableId], references: [id])
+
+  @@map("attachment")
+}
+
+// ============================================================
+// AUDIT LOG
+// ============================================================
+
+model AuditLog {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  entityType String      @map("entity_type") @db.VarChar(50)
+  entityId   String      @map("entity_id") @db.Uuid
+  version    Int?
+  action     AuditAction
+  oldData    Json?       @map("old_data") @db.JsonB
+  newData    Json?       @map("new_data") @db.JsonB
+  actorId    String?     @map("actor_id") @db.Uuid
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  actor Actor? @relation(fields: [actorId], references: [id])
+
+  @@map("audit_log")
+}
