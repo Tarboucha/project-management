@@ -19,6 +19,9 @@ export const GET = withAdminOrProjectRole<Params>("CONTRIBUTOR", async (_actor, 
     where: { id: projectId },
     include: {
       program: { select: { id: true, name: true } },
+      activity: { select: { id: true, name: true } },
+      theme: { select: { id: true, name: true } },
+      category: { select: { id: true, name: true } },
       createdBy: { select: { id: true, firstName: true, lastName: true } },
       members: {
         include: {

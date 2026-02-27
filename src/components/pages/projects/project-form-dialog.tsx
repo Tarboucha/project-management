@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { LookupSelectField } from "@/components/shared/lookup-select-field"
 import { createProjectSchema, updateProjectSchema } from "@/lib/validations/project"
 import { api } from "@/lib/utils/api-client"
 import { toast } from "sonner"
@@ -23,10 +24,14 @@ interface ProjectFormDialogProps {
   project?: {
     id: string
     name: string
+    projectCode?: string | null
     objective?: string | null
     startDate: string
     endDate?: string | null
     budgetEstimated?: number | string | null
+    activityId?: string | null
+    themeId?: string | null
+    categoryId?: string | null
   }
 }
 
@@ -39,6 +44,9 @@ export function ProjectFormDialog({
 }: ProjectFormDialogProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [selectedActivity, setSelectedActivity] = useState(project?.activityId ?? "none")
+  const [selectedTheme, setSelectedTheme] = useState(project?.themeId ?? "none")
+  const [selectedCategory, setSelectedCategory] = useState(project?.categoryId ?? "none")
   const isEditing = !!project
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -48,6 +56,7 @@ export function ProjectFormDialog({
     const formData = new FormData(e.currentTarget)
     const data: Record<string, unknown> = {
       name: formData.get("name") as string,
+      projectCode: (formData.get("projectCode") as string) || undefined,
       objective: (formData.get("objective") as string) || undefined,
       startDate: formData.get("startDate") as string,
       endDate: (formData.get("endDate") as string) || undefined,
@@ -56,6 +65,16 @@ export function ProjectFormDialog({
     const budgetStr = formData.get("budgetEstimated") as string
     if (budgetStr) {
       data.budgetEstimated = parseFloat(budgetStr)
+    }
+
+    if (isEditing) {
+      data.activityId = selectedActivity !== "none" ? selectedActivity : null
+      data.themeId = selectedTheme !== "none" ? selectedTheme : null
+      data.categoryId = selectedCategory !== "none" ? selectedCategory : null
+    } else {
+      if (selectedActivity !== "none") data.activityId = selectedActivity
+      if (selectedTheme !== "none") data.themeId = selectedTheme
+      if (selectedCategory !== "none") data.categoryId = selectedCategory
     }
 
     if (!isEditing && programId) {
@@ -107,20 +126,31 @@ export function ProjectFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Edit Project" : "Create Project"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid gap-2">
-            <Label htmlFor="name">Name *</Label>
-            <Input
-              id="name"
-              name="name"
-              defaultValue={project?.name ?? ""}
-              required
-              maxLength={255}
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Name *</Label>
+              <Input
+                id="name"
+                name="name"
+                defaultValue={project?.name ?? ""}
+                required
+                maxLength={255}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="projectCode">Project Code</Label>
+              <Input
+                id="projectCode"
+                name="projectCode"
+                defaultValue={project?.projectCode ?? ""}
+                maxLength={255}
+              />
+            </div>
           </div>
 
           <div className="grid gap-2">
@@ -130,6 +160,33 @@ export function ProjectFormDialog({
               name="objective"
               defaultValue={project?.objective ?? ""}
               rows={3}
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <LookupSelectField
+              label="Activity"
+              apiPath="/api/lookups/activities"
+              value={selectedActivity}
+              onChange={setSelectedActivity}
+              parentOpen={open}
+              disabled={isLoading}
+            />
+            <LookupSelectField
+              label="Theme"
+              apiPath="/api/lookups/themes"
+              value={selectedTheme}
+              onChange={setSelectedTheme}
+              parentOpen={open}
+              disabled={isLoading}
+            />
+            <LookupSelectField
+              label="Category"
+              apiPath="/api/lookups/categories"
+              value={selectedCategory}
+              onChange={setSelectedCategory}
+              parentOpen={open}
+              disabled={isLoading}
             />
           </div>
 

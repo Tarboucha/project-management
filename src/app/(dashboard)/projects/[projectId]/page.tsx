@@ -17,7 +17,7 @@ import { ProjectMembersSection } from "@/components/pages/projects/project-membe
 import { MilestonesSection } from "@/components/pages/projects/milestones-section"
 import { TasksSection } from "@/components/pages/projects/tasks-section"
 import { AuditLogSection } from "@/components/pages/shared/audit-log-section"
-import { ArrowLeft, Pencil, Trash2 } from "lucide-react"
+import { ArrowLeft, FileDown, Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 interface ProjectDetail {
@@ -139,6 +139,14 @@ export default function ProjectDetailPage() {
           )}
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open(`/api/projects/${projectId}/report`)}
+          >
+            <FileDown className="mr-2 h-4 w-4" />
+            PDF
+          </Button>
           {canEdit && (
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
               <Pencil className="mr-2 h-4 w-4" />

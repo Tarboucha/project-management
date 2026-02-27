@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { StateBadge } from "@/components/pages/shared/state-badge"
-import { Search, Briefcase } from "lucide-react"
+import { Search, Briefcase, FileDown } from "lucide-react"
 
 interface Project {
   id: string
@@ -178,6 +178,7 @@ export default function ProjectsPage() {
                   <TableHead>Start Date</TableHead>
                   <TableHead>Members</TableHead>
                   <TableHead>Tasks</TableHead>
+                  <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -206,6 +207,13 @@ export default function ProjectsPage() {
                     <TableCell>{formatDate(project.startDate)}</TableCell>
                     <TableCell>{project._count.members}</TableCell>
                     <TableCell>{project._count.tasks}</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="icon" asChild>
+                        <a href={`/api/projects/${project.id}/report`} target="_blank" rel="noopener noreferrer">
+                          <FileDown className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
