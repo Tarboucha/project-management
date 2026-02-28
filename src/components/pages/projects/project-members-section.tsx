@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { api } from "@/lib/utils/api-client"
+import type { CursorPaginatedResult } from "@/types/api"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -26,11 +27,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
 import { DeleteConfirmDialog } from "@/components/pages/shared/delete-confirm-dialog"
-import { Plus, UserMinus } from "lucide-react"
+import { Check, Plus, UserMinus } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
 interface Member {
@@ -45,6 +54,13 @@ interface Member {
     email: string
     systemRole: string
   }
+}
+
+interface ActorOption {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
 }
 
 interface ProjectMembersSectionProps {
@@ -71,6 +87,15 @@ export function ProjectMembersSection({ projectId, projectRole }: ProjectMembers
   // Add member dialog
   const [addOpen, setAddOpen] = useState(false)
   const [addLoading, setAddLoading] = useState(false)
+  const [actors, setActors] = useState<ActorOption[]>([])
+  const [actorSearch, setActorSearch] = useState("")
+  const [selectedActor, setSelectedActor] = useState<ActorOption | null>(null)
+  const [addRole, setAddRole] = useState<string>("CONTRIBUTOR")
+  const [actorsLoading, setActorsLoading] = useState(false)
+  const [actorsCursor, setActorsCursor] = useState<string | null>(null)
+  const [actorsHasMore, setActorsHasMore] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null)
+  const listRef = useRef<HTMLDivElement>(null)
 
   // Remove member dialog
   const [removeOpen, setRemoveOpen] = useState(false)
@@ -79,6 +104,67 @@ export function ProjectMembersSection({ projectId, projectRole }: ProjectMembers
 
   const canManageMembers = admin || projectRole === "DIRECTOR" || projectRole === "MANAGER"
   const canChangeRoles = admin || projectRole === "DIRECTOR"
+
+  const fetchActors = useCallback(async (searchTerm: string, cursor?: string | null) => {
+    setActorsLoading(true)
+    const params = new URLSearchParams()
+    params.set("excludeProjectId", projectId)
+    params.set("limit", "20")
+    if (searchTerm) params.set("search", searchTerm)
+    if (cursor) params.set("cursor", cursor)
+
+    const res = await api.get(`/api/actors?${params}`)
+    if (res.success) {
+      const paginated = res as CursorPaginatedResult<ActorOption>
+      if (cursor) {
+        setActors((prev) => [...prev, ...paginated.data])
+      } else {
+        setActors(paginated.data)
+      }
+      setActorsCursor(paginated.nextCursor)
+      setActorsHasMore(paginated.hasMore)
+    }
+    setActorsLoading(false)
+  }, [projectId])
+
+  const loadMoreActors = useCallback(() => {
+    if (!actorsHasMore || actorsLoading) return
+    fetchActors(actorSearch, actorsCursor)
+  }, [actorsHasMore, actorsLoading, actorSearch, actorsCursor, fetchActors])
+
+  useEffect(() => {
+    if (!addOpen) return
+    setActorSearch("")
+    setSelectedActor(null)
+    setAddRole("CONTRIBUTOR")
+    fetchActors("")
+  }, [addOpen, fetchActors])
+
+  useEffect(() => {
+    if (!addOpen) return
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      fetchActors(actorSearch)
+    }, actorSearch ? 300 : 0)
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [actorSearch, addOpen, fetchActors])
+
+  // Infinite scroll on CommandList
+  useEffect(() => {
+    const el = listRef.current
+    if (!el || !addOpen) return
+
+    const handleScroll = () => {
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 50) {
+        loadMoreActors()
+      }
+    }
+
+    el.addEventListener("scroll", handleScroll)
+    return () => el.removeEventListener("scroll", handleScroll)
+  }, [addOpen, loadMoreActors])
 
   useEffect(() => {
     let cancelled = false
@@ -101,19 +187,17 @@ export function ProjectMembersSection({ projectId, projectRole }: ProjectMembers
     setFetchKey((k) => k + 1)
   }
 
-  const handleAddMember = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const formData = new FormData(e.currentTarget)
-    const email = (formData.get("email") as string).trim()
-    const role = formData.get("role") as string
-
-    if (!email) {
-      toast.error("Email is required")
+  const handleAddMember = async () => {
+    if (!selectedActor) {
+      toast.error("Select a user")
       return
     }
 
     setAddLoading(true)
-    const res = await api.post(`/api/projects/${projectId}/members`, { email, role })
+    const res = await api.post(`/api/projects/${projectId}/members`, {
+      email: selectedActor.email,
+      role: addRole,
+    })
     if (res.success) {
       toast.success("Member added")
       setAddOpen(false)
@@ -258,52 +342,89 @@ export function ProjectMembersSection({ projectId, projectRole }: ProjectMembers
 
       {/* Add Member Dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Add Member</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleAddMember} className="space-y-4">
+          <div className="space-y-4">
             <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="user@example.com"
-                required
-              />
+              <Label>Select User</Label>
+              <div className="rounded-md border">
+                <Command shouldFilter={false}>
+                  <CommandInput
+                    placeholder="Search by name or email..."
+                    value={actorSearch}
+                    onValueChange={setActorSearch}
+                  />
+                  <CommandList ref={listRef} className="max-h-[240px]">
+                    <CommandEmpty>
+                      {actorsLoading ? "Loading..." : "No users found."}
+                    </CommandEmpty>
+                    <CommandGroup>
+                      {actors.map((a) => {
+                        const isSelected = selectedActor?.id === a.id
+                        return (
+                          <CommandItem
+                            key={a.id}
+                            onSelect={() => setSelectedActor(isSelected ? null : a)}
+                          >
+                            <div
+                              className={cn(
+                                "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                isSelected
+                                  ? "bg-primary text-primary-foreground"
+                                  : "opacity-50 [&_svg]:invisible"
+                              )}
+                            >
+                              <Check className="h-3 w-3" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium">{a.firstName} {a.lastName}</span>
+                              <span className="text-xs text-muted-foreground">{a.email}</span>
+                            </div>
+                          </CommandItem>
+                        )
+                      })}
+                    </CommandGroup>
+                    {actorsLoading && actors.length > 0 && (
+                      <div className="py-2 text-center text-xs text-muted-foreground">
+                        Loading more...
+                      </div>
+                    )}
+                  </CommandList>
+                </Command>
+              </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="role">Role</Label>
-              <select
-                id="role"
-                name="role"
-                defaultValue="CONTRIBUTOR"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-              >
-                {(admin || projectRole === "DIRECTOR") && (
-                  <>
-                    <option value="DIRECTOR">Director</option>
-                    <option value="MANAGER">Manager</option>
-                  </>
-                )}
-                <option value="CONTRIBUTOR">Contributor</option>
-              </select>
+              <Label>Role</Label>
+              <Select value={addRole} onValueChange={setAddRole}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(admin || projectRole === "DIRECTOR") && (
+                    <>
+                      <SelectItem value="DIRECTOR">Director</SelectItem>
+                      <SelectItem value="MANAGER">Manager</SelectItem>
+                    </>
+                  )}
+                  <SelectItem value="CONTRIBUTOR">Contributor</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex justify-end gap-2">
               <Button
-                type="button"
                 variant="outline"
                 onClick={() => setAddOpen(false)}
                 disabled={addLoading}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={addLoading}>
+              <Button onClick={handleAddMember} disabled={addLoading || !selectedActor}>
                 {addLoading ? "Adding..." : "Add Member"}
               </Button>
             </div>
-          </form>
+          </div>
         </DialogContent>
       </Dialog>
 
