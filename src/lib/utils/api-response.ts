@@ -185,6 +185,20 @@ export function parseFilters(searchParams: URLSearchParams, allowedKeys: string[
   return filters
 }
 
+export function parseMultiFilters(
+  searchParams: URLSearchParams,
+  allowedKeys: string[]
+): Record<string, string[]> {
+  const filters: Record<string, string[]> = {}
+  for (const key of allowedKeys) {
+    const value = searchParams.get(key)
+    if (value !== null && value !== "") {
+      filters[key] = value.split(",").filter(Boolean)
+    }
+  }
+  return filters
+}
+
 export function parseSorting(
   searchParams: URLSearchParams,
   allowedFields: string[],

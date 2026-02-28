@@ -67,6 +67,12 @@ export function LookupSelectField({
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     const name = (formData.get("name") as string).trim()
+    const code = (formData.get("code") as string).trim()
+
+    if (!code) {
+      toast.error("Code is required")
+      return
+    }
     const description = (formData.get("description") as string).trim() || undefined
 
     if (!name) {
@@ -76,7 +82,7 @@ export function LookupSelectField({
 
     setCreating(true)
     try {
-      const res = await api.post<LookupItem>(apiPath, { name, description })
+      const res = await api.post<LookupItem>(apiPath, { name, code, description })
       if (!res.success) {
         throw new Error(res.error.message)
       }
@@ -126,15 +132,26 @@ export function LookupSelectField({
             <DialogTitle>Create {label}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor={`lookup-name-${label}`}>Name *</Label>
-              <Input
-                id={`lookup-name-${label}`}
-                name="name"
-                required
-                maxLength={255}
-                autoFocus
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor={`lookup-name-${label}`}>Name *</Label>
+                <Input
+                  id={`lookup-name-${label}`}
+                  name="name"
+                  required
+                  maxLength={255}
+                  autoFocus
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor={`lookup-code-${label}`}>Code *</Label>
+                <Input
+                  id={`lookup-code-${label}`}
+                  name="code"
+                  required
+                  maxLength={50}
+                />
+              </div>
             </div>
             <div className="grid gap-2">
               <Label htmlFor={`lookup-desc-${label}`}>Description</Label>

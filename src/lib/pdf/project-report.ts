@@ -19,24 +19,18 @@ export interface ProjectReportData {
     activity?: { name: string } | null
     theme?: { name: string } | null
     category?: { name: string } | null
-    createdBy: { firstName: string; lastName: string }
   }
   members: Array<{
     role: string
     actor: { firstName: string; lastName: string; email: string }
   }>
-  milestones: Array<{
-    name: string
-    dueDate: string | Date
-    completedAt?: string | Date | null
-    _count?: { tasks: number }
-  }>
   tasks: Array<{
+    taskOrder: number
     objective: string
+    details?: string | null
     priority: string
     state: string
     progress: number
-    milestone?: { name: string } | null
     contributors: Array<{
       actor: { firstName: string; lastName: string }
     }>
@@ -63,14 +57,9 @@ function formatBudget(value: unknown): string {
   return `${num.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} EUR`
 }
 
-function milestoneStatus(dueDate: string | Date, completedAt?: string | Date | null): string {
-  if (completedAt) return "Completed"
-  const due = typeof dueDate === "string" ? new Date(dueDate) : dueDate
-  const now = new Date()
-  const diffDays = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-  if (diffDays < 0) return "Overdue"
-  if (diffDays <= 7) return "Due Soon"
-  return "On Track"
+function findMemberByRole(members: ProjectReportData["members"], role: string): string {
+  const member = members.find((m) => m.role === role)
+  return member ? `${member.actor.firstName} ${member.actor.lastName}` : "—"
 }
 
 // ============================================================
@@ -106,30 +95,6 @@ function buildMembersTable(members: ProjectReportData["members"]): Content {
   }
 }
 
-function buildMilestonesTable(milestones: ProjectReportData["milestones"]): Content {
-  if (milestones.length === 0) {
-    return { text: "No milestones defined.", italics: true, color: "#6b7280", margin: [0, 0, 0, 10] }
-  }
-
-  return {
-    table: {
-      headerRows: 1,
-      widths: ["*", "auto", "auto", "auto"],
-      body: [
-        [headerCell("Name"), headerCell("Due Date"), headerCell("Tasks"), headerCell("Status")],
-        ...milestones.map((m) => [
-          { text: m.name, fontSize: 9 },
-          { text: formatDate(m.dueDate), fontSize: 9 },
-          { text: String(m._count?.tasks ?? 0), fontSize: 9, alignment: "center" as const },
-          { text: milestoneStatus(m.dueDate, m.completedAt), fontSize: 9 },
-        ]),
-      ],
-    },
-    layout: "lightHorizontalLines",
-    margin: [0, 0, 0, 10] as [number, number, number, number],
-  }
-}
-
 function buildTasksTable(tasks: ProjectReportData["tasks"]): Content {
   if (tasks.length === 0) {
     return { text: "No tasks created.", italics: true, color: "#6b7280", margin: [0, 0, 0, 10] }
@@ -138,19 +103,21 @@ function buildTasksTable(tasks: ProjectReportData["tasks"]): Content {
   return {
     table: {
       headerRows: 1,
-      widths: ["*", "auto", "auto", "auto", "auto"],
+      widths: ["auto", "*", "auto", "auto", "auto", "auto", "auto"],
       body: [
-        [headerCell("Objective"), headerCell("Priority"), headerCell("State"), headerCell("Progress"), headerCell("Contributors")],
+        [headerCell("Objective"), headerCell("Description"), headerCell("Priority"), headerCell("State"), headerCell("Progress"), headerCell("Task Owner"), headerCell("Ord")],
         ...tasks.map((t) => {
-          const contributors = t.contributors
+          const owner = t.contributors
             .map((c) => `${c.actor.firstName} ${c.actor.lastName}`)
             .join(", ") || "—"
           return [
             { text: t.objective, fontSize: 9 },
+            { text: t.details || "—", fontSize: 9 },
             { text: t.priority, fontSize: 9 },
             { text: t.state, fontSize: 9 },
             { text: `${t.progress}%`, fontSize: 9, alignment: "center" as const },
-            { text: contributors, fontSize: 9 },
+            { text: owner, fontSize: 9 },
+            { text: t.taskOrder.toString(), fontSize: 9, alignment: "center" as const },
           ]
         }),
       ],
@@ -165,10 +132,13 @@ function buildTasksTable(tasks: ProjectReportData["tasks"]): Content {
 // ============================================================
 
 export function buildProjectReport(data: ProjectReportData): TDocumentDefinitions {
-  const { project, members, milestones, tasks } = data
+  const { project, members, tasks } = data
 
   const activeTasks = tasks.filter((t) => t.state === "ACTIVE").length
   const completedTasks = tasks.filter((t) => t.state === "ENDED").length
+
+  const projectManager = findMemberByRole(members, "MANAGER")
+  const projectDirector = findMemberByRole(members, "DIRECTOR")
 
   return {
     pageSize: "A4",
@@ -224,7 +194,8 @@ export function buildProjectReport(data: ProjectReportData): TDocumentDefinition
       },
       {
         columns: [
-          { text: [{ text: "Created by: ", bold: true }, `${project.createdBy.firstName} ${project.createdBy.lastName}`], fontSize: 10 },
+          { text: [{ text: "Project Manager: ", bold: true }, projectManager], fontSize: 10 },
+          { text: [{ text: "Project Director: ", bold: true }, projectDirector], fontSize: 10 },
           { text: [{ text: "Tasks: ", bold: true }, `${activeTasks} active, ${completedTasks} ended (${tasks.length} total)`], fontSize: 10 },
         ],
         margin: [0, 0, 0, 15] as [number, number, number, number],
@@ -236,10 +207,6 @@ export function buildProjectReport(data: ProjectReportData): TDocumentDefinition
       // Team Members
       { text: `Team Members (${members.length})`, style: "sectionHeader" },
       buildMembersTable(members),
-
-      // Milestones
-      { text: `Milestones (${milestones.length})`, style: "sectionHeader" },
-      buildMilestonesTable(milestones),
 
       // Tasks
       { text: `Tasks (${tasks.length})`, style: "sectionHeader" },

@@ -22,6 +22,7 @@ import {
   Briefcase,
   Users,
   ScrollText,
+  Tags,
 } from "lucide-react"
 import { NavUser } from "./nav-user"
 
@@ -33,6 +34,7 @@ const navItems = [
 
 const adminItems = [
   { title: "Users", url: "/admin/actors", icon: Users },
+  { title: "Lookups", url: "/admin/lookups", icon: Tags },
   { title: "Audit Log", url: "/admin/audit-log", icon: ScrollText },
 ]
 

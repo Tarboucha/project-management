@@ -45,31 +45,21 @@ export const GET = withAdminOrProjectRole<Params>("CONTRIBUTOR", async (_actor, 
       activity: { select: { name: true } },
       theme: { select: { name: true } },
       category: { select: { name: true } },
-      createdBy: { select: { firstName: true, lastName: true } },
       members: {
         include: {
           actor: { select: { firstName: true, lastName: true, email: true } },
-        },
-      },
-      milestones: {
-        where: { deletedAt: null },
-        orderBy: { dueDate: "asc" },
-        select: {
-          name: true,
-          dueDate: true,
-          completedAt: true,
-          _count: { select: { tasks: { where: { deletedAt: null } } } },
         },
       },
       tasks: {
         where: { deletedAt: null },
         orderBy: { taskOrder: "asc" },
         select: {
+          taskOrder: true,
           objective: true,
+          details: true,
           priority: true,
           state: true,
           progress: true,
-          milestone: { select: { name: true } },
           contributors: {
             include: {
               actor: { select: { firstName: true, lastName: true } },
@@ -87,7 +77,6 @@ export const GET = withAdminOrProjectRole<Params>("CONTRIBUTOR", async (_actor, 
   const docDefinition = buildProjectReport({
     project,
     members: project.members,
-    milestones: project.milestones,
     tasks: project.tasks,
   })
 

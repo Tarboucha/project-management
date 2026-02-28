@@ -38,6 +38,7 @@ interface TaskFormDialogProps {
     details?: string | null
     milestoneId?: string | null
     priority: string
+    taskOrder: number
     startDate: string
     endDate?: string | null
     budgetEstimated?: number | string | null
@@ -85,10 +86,12 @@ export function TaskFormDialog({
     setError(null)
 
     const formData = new FormData(e.currentTarget)
+    const orderStr = formData.get("taskOrder") as string
     const data: Record<string, unknown> = {
       objective: formData.get("objective") as string,
       details: (formData.get("details") as string) || undefined,
       priority: selectedPriority,
+      taskOrder: orderStr ? parseInt(orderStr, 10) : undefined,
       startDate: formData.get("startDate") as string,
       endDate: (formData.get("endDate") as string) || undefined,
     }
@@ -153,15 +156,29 @@ export function TaskFormDialog({
           <DialogTitle>{isEditing ? "Edit Task" : "Create Task"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid gap-2">
-            <Label htmlFor="objective">Objective *</Label>
-            <Input
-              id="objective"
-              name="objective"
-              defaultValue={task?.objective ?? ""}
-              required
-              maxLength={255}
-            />
+          <div className="grid grid-cols-[1fr_80px] gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="objective">Objective *</Label>
+              <Input
+                id="objective"
+                name="objective"
+                defaultValue={task?.objective ?? ""}
+                required
+                maxLength={255}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="taskOrder">Order *</Label>
+              <Input
+                id="taskOrder"
+                name="taskOrder"
+                type="number"
+                min="1"
+                step="1"
+                defaultValue={task?.taskOrder?.toString() ?? ""}
+                required
+              />
+            </div>
           </div>
 
           <div className="grid gap-2">

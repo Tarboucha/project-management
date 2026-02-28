@@ -1,18 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { api } from "@/lib/utils/api-client"
 import type { CursorPaginatedResult } from "@/types/api"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import {
   Table,
   TableBody,
@@ -23,7 +17,8 @@ import {
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { StateBadge } from "@/components/pages/shared/state-badge"
-import { Search, Briefcase, FileDown } from "lucide-react"
+import { FacetedFilter } from "@/components/shared/faceted-filter"
+import { Search, Briefcase, FileDown, X, ArrowUp, ArrowDown } from "lucide-react"
 
 interface Project {
   id: string
@@ -37,29 +32,51 @@ interface Project {
 
 
 export default function ProjectsPage() {
+  const searchParams = useSearchParams()
   const [projects, setProjects] = useState<Project[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [hasMore, setHasMore] = useState(false)
   const [nextCursor, setNextCursor] = useState<string | null>(null)
 
-  // Filters
+  // Multi-select lookup filters (initialized from URL for backward compat)
+  const [activityIds, setActivityIds] = useState<string[]>(() => {
+    const v = searchParams.get("activityId")
+    return v ? v.split(",").filter(Boolean) : []
+  })
+  const [themeIds, setThemeIds] = useState<string[]>(() => {
+    const v = searchParams.get("themeId")
+    return v ? v.split(",").filter(Boolean) : []
+  })
+  const [categoryIds, setCategoryIds] = useState<string[]>(() => {
+    const v = searchParams.get("categoryId")
+    return v ? v.split(",").filter(Boolean) : []
+  })
+
+  // Search and sort
   const [search, setSearch] = useState("")
-  const [stateFilter, setStateFilter] = useState<string>("all")
   const [sortBy, setSortBy] = useState("createdAt")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
+
+  const buildParams = useCallback((cursor?: string | null) => {
+    const params = new URLSearchParams()
+    params.set("limit", "20")
+    if (cursor) params.set("cursor", cursor)
+    if (search) params.set("search", search)
+    if (activityIds.length > 0) params.set("activityId", activityIds.join(","))
+    if (themeIds.length > 0) params.set("themeId", themeIds.join(","))
+    if (categoryIds.length > 0) params.set("categoryId", categoryIds.join(","))
+    params.set("sortBy", sortBy)
+    params.set("sortOrder", sortOrder)
+    return params
+  }, [search, activityIds, themeIds, categoryIds, sortBy, sortOrder])
 
   // Data fetching effect
   useEffect(() => {
     let cancelled = false
 
     const doFetch = async () => {
-      const params = new URLSearchParams()
-      params.set("limit", "20")
-      if (stateFilter !== "all") params.set("state", stateFilter)
-      if (search) params.set("search", search)
-      params.set("sortBy", sortBy)
-      params.set("sortOrder", sortOrder)
-
+      setIsLoading(true)
+      const params = buildParams()
       const res = await api.get(`/api/projects?${params}`)
       if (cancelled) return
       if (res.success) {
@@ -73,18 +90,11 @@ export default function ProjectsPage() {
 
     doFetch()
     return () => { cancelled = true }
-  }, [search, stateFilter, sortBy, sortOrder])
+  }, [buildParams])
 
   const loadMore = async () => {
     if (!nextCursor) return
-    const params = new URLSearchParams()
-    params.set("cursor", nextCursor)
-    params.set("limit", "20")
-    if (stateFilter !== "all") params.set("state", stateFilter)
-    if (search) params.set("search", search)
-    params.set("sortBy", sortBy)
-    params.set("sortOrder", sortOrder)
-
+    const params = buildParams(nextCursor)
     const res = await api.get(`/api/projects?${params}`)
     if (res.success) {
       const paginated = res as CursorPaginatedResult<Project>
@@ -94,9 +104,28 @@ export default function ProjectsPage() {
     }
   }
 
+  const toggleSort = (field: string) => {
+    setIsLoading(true)
+    if (sortBy === field) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
+    } else {
+      setSortBy(field)
+      setSortOrder("asc")
+    }
+  }
+
+  const sortIcon = (field: string) => {
+    if (sortBy !== field) return null
+    return sortOrder === "asc"
+      ? <ArrowUp className="inline h-3.5 w-3.5 ml-1" />
+      : <ArrowDown className="inline h-3.5 w-3.5 ml-1" />
+  }
+
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString()
   }
+
+  const hasActiveFilters = activityIds.length > 0 || themeIds.length > 0 || categoryIds.length > 0
 
   return (
     <div className="space-y-6">
@@ -116,36 +145,35 @@ export default function ProjectsPage() {
             className="pl-9"
           />
         </div>
-        <Select value={stateFilter} onValueChange={(v) => { setIsLoading(true); setStateFilter(v) }}>
-          <SelectTrigger className="w-32.5">
-            <SelectValue placeholder="State" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All States</SelectItem>
-            <SelectItem value="ACTIVE">Active</SelectItem>
-            <SelectItem value="ENDED">Ended</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={sortBy} onValueChange={(v) => { setIsLoading(true); setSortBy(v) }}>
-          <SelectTrigger className="w-37.5">
-            <SelectValue placeholder="Sort by" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="createdAt">Created Date</SelectItem>
-            <SelectItem value="name">Name</SelectItem>
-            <SelectItem value="startDate">Start Date</SelectItem>
-            <SelectItem value="progress">Progress</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={sortOrder} onValueChange={(v) => { setIsLoading(true); setSortOrder(v as "asc" | "desc") }}>
-          <SelectTrigger className="w-27.5">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="desc">Newest</SelectItem>
-            <SelectItem value="asc">Oldest</SelectItem>
-          </SelectContent>
-        </Select>
+        <FacetedFilter
+          title="Activity"
+          apiPath="/api/lookups/activities"
+          selected={activityIds}
+          onSelectionChange={setActivityIds}
+        />
+        <FacetedFilter
+          title="Theme"
+          apiPath="/api/lookups/themes"
+          selected={themeIds}
+          onSelectionChange={setThemeIds}
+        />
+        <FacetedFilter
+          title="Category"
+          apiPath="/api/lookups/categories"
+          selected={categoryIds}
+          onSelectionChange={setCategoryIds}
+        />
+        {hasActiveFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { setActivityIds([]); setThemeIds([]); setCategoryIds([]) }}
+            className="h-8 px-2"
+          >
+            Clear all
+            <X className="ml-1 h-3 w-3" />
+          </Button>
+        )}
       </div>
 
       {/* Table */}
@@ -160,8 +188,8 @@ export default function ProjectsPage() {
           <Briefcase className="h-12 w-12 text-muted-foreground/50" />
           <h3 className="mt-4 text-lg font-medium">No projects found</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            {search || stateFilter !== "all"
-              ? "Try adjusting your filters"
+            {search || hasActiveFilters
+              ? "Try adjusting your search or filters"
               : "Projects will appear here once created under a program"}
           </p>
         </div>
@@ -171,13 +199,13 @@ export default function ProjectsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Program</TableHead>
-                  <TableHead>State</TableHead>
-                  <TableHead>Progress</TableHead>
-                  <TableHead>Start Date</TableHead>
-                  <TableHead>Members</TableHead>
-                  <TableHead>Tasks</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("name")}>Name{sortIcon("name")}</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("programName")}>Program{sortIcon("programName")}</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("state")}>State{sortIcon("state")}</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("progress")}>Progress{sortIcon("progress")}</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("startDate")}>Start Date{sortIcon("startDate")}</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("members")}>Members{sortIcon("members")}</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("tasks")}>Tasks{sortIcon("tasks")}</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>

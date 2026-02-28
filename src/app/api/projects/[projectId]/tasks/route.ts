@@ -24,7 +24,7 @@ export const GET = withAdminOrProjectRole<Params>("CONTRIBUTOR", async (_actor, 
   const searchParams = request.nextUrl.searchParams
   const pagination = parseCursorPagination(searchParams)
   const filters = parseFilters(searchParams, ["state", "search", "milestoneId", "priority"])
-  const sorting = parseSorting(searchParams, ["objective", "createdAt", "startDate", "priority", "progress"])
+  const sorting = parseSorting(searchParams, ["taskOrder", "objective", "createdAt", "startDate", "priority", "progress"], "taskOrder", "asc")
 
   const where: Prisma.TaskWhereInput = {
     projectId,
@@ -70,6 +70,14 @@ export const POST = withAdminOrProjectRole<Params>("MANAGER", async (actor, requ
 
   if (!validation.success) {
     return ApiErrors.validationError(parseZodError(validation.error))
+  }
+
+  // Verify taskOrder is unique within the project (among non-deleted tasks)
+  const existingOrder = await prisma.task.findFirst({
+    where: { projectId, taskOrder: validation.data.taskOrder, deletedAt: null },
+  })
+  if (existingOrder) {
+    return ApiErrors.conflict(`A task with order ${validation.data.taskOrder} already exists in this project`)
   }
 
   // Verify milestone belongs to project if provided

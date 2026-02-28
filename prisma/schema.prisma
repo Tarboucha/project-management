@@ -591,6 +591,7 @@ enum AuditAction {
 model Activity {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name        String    @db.VarChar(255)
+  code        String    @db.VarChar(50)
   description String?
   isActive    Boolean   @default(true) @map("is_active")
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -607,6 +608,7 @@ model Activity {
 model Theme {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name        String    @db.VarChar(255)
+  code        String    @db.VarChar(50)
   description String?
   isActive    Boolean   @default(true) @map("is_active")
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -623,6 +625,7 @@ model Theme {
 model Category {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name        String    @db.VarChar(255)
+  code        String    @db.VarChar(50)
   description String?
   isActive    Boolean   @default(true) @map("is_active")
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)

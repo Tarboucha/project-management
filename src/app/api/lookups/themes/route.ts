@@ -38,6 +38,7 @@ export const GET = withAnyAuth(async (_actor, request: NextRequest): Promise<Nex
       skip: 1,
     }),
     orderBy: { [sorting.field]: sorting.order },
+    include: { _count: { select: { projects: { where: { deletedAt: null } } } } },
   })
 
   return cursorPaginatedResponse(themes, pagination)

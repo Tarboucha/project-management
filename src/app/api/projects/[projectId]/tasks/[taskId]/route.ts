@@ -54,6 +54,16 @@ export const PATCH = withAdminOrProjectRole<Params>("MANAGER", async (actor, req
     return ApiErrors.validationError(parseZodError(validation.error))
   }
 
+  // Verify taskOrder is unique within the project (among non-deleted tasks, excluding self)
+  if (validation.data.taskOrder !== undefined) {
+    const existingOrder = await prisma.task.findFirst({
+      where: { projectId, taskOrder: validation.data.taskOrder, deletedAt: null, id: { not: taskId } },
+    })
+    if (existingOrder) {
+      return ApiErrors.conflict(`A task with order ${validation.data.taskOrder} already exists in this project`)
+    }
+  }
+
   // Verify milestone belongs to project if provided
   if (validation.data.milestoneId) {
     const milestone = await prisma.milestone.findUnique({

@@ -24,7 +24,14 @@ import { DeleteConfirmDialog } from "@/components/pages/shared/delete-confirm-di
 import { AuditLogSection } from "@/components/pages/shared/audit-log-section"
 import { TaskFormDialog } from "@/components/pages/projects/task-form-dialog"
 import { Slider } from "@/components/ui/slider"
-import { ArrowLeft, Check, Pencil, Trash2, UserMinus } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { ArrowLeft, Check, Pencil, Trash2, UserMinus, UserPlus } from "lucide-react"
 import { toast } from "sonner"
 
 interface TaskDetail {
@@ -53,6 +60,7 @@ interface ProjectInfo {
   members: Array<{
     role: "DIRECTOR" | "MANAGER" | "CONTRIBUTOR"
     actorId: string
+    actor: { id: string; firstName: string; lastName: string; email: string }
   }>
 }
 
@@ -85,6 +93,9 @@ export default function TaskDetailPage() {
   const [removeOpen, setRemoveOpen] = useState(false)
   const [removingContributor, setRemovingContributor] = useState<TaskDetail["contributors"][0] | null>(null)
   const [removeLoading, setRemoveLoading] = useState(false)
+
+  // Add contributor
+  const [addingContributor, setAddingContributor] = useState(false)
 
   // Progress editing
   const [progressValue, setProgressValue] = useState<number>(0)
@@ -152,6 +163,18 @@ export default function TaskDetailPage() {
     setRemoveLoading(false)
     setRemoveOpen(false)
     setRemovingContributor(null)
+  }
+
+  const handleAddContributor = async (actorId: string) => {
+    setAddingContributor(true)
+    const res = await api.post(`/api/projects/${projectId}/tasks/${taskId}/contributors`, { actorId })
+    if (res.success) {
+      toast.success("Contributor added")
+      refetch()
+    } else {
+      toast.error("Failed to add contributor")
+    }
+    setAddingContributor(false)
   }
 
   const handleProgressSave = async () => {
@@ -331,7 +354,33 @@ export default function TaskDetailPage() {
 
       {/* Contributors */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold">Contributors ({task.contributors.length})</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold">Contributors ({task.contributors.length})</h2>
+          {canManage && project && (() => {
+            const existingIds = new Set(task.contributors.map((c) => c.actor.id))
+            const eligible = project.members.filter((m) => !existingIds.has(m.actorId))
+            if (eligible.length === 0) return null
+            return (
+              <Select
+                value=""
+                onValueChange={handleAddContributor}
+                disabled={addingContributor}
+              >
+                <SelectTrigger className="w-auto gap-1 h-8 px-2">
+                  <UserPlus className="h-4 w-4" />
+                  <SelectValue placeholder="Add..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {eligible.map((m) => (
+                    <SelectItem key={m.actorId} value={m.actorId}>
+                      {m.actor.firstName} {m.actor.lastName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )
+          })()}
+        </div>
         {task.contributors.length === 0 ? (
           <p className="text-sm text-muted-foreground">No contributors assigned.</p>
         ) : (
