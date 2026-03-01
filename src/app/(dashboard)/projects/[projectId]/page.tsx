@@ -6,18 +6,18 @@ import Link from "next/link"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { api } from "@/lib/utils/api-client"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { Slider } from "@/components/ui/slider"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
 import { StateBadge } from "@/components/pages/shared/state-badge"
 import { DeleteConfirmDialog } from "@/components/pages/shared/delete-confirm-dialog"
 import { ProjectFormDialog } from "@/components/pages/projects/project-form-dialog"
 import { ProjectMembersSection } from "@/components/pages/projects/project-members-section"
-import { MilestonesSection } from "@/components/pages/projects/milestones-section"
 import { TasksSection } from "@/components/pages/projects/tasks-section"
 import { AuditLogSection } from "@/components/pages/shared/audit-log-section"
-import { ArrowLeft, FileDown, Pencil, Trash2 } from "lucide-react"
+import { ArrowLeft, Check, FileDown, Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 interface ProjectDetail {
@@ -31,13 +31,16 @@ interface ProjectDetail {
   budgetEstimated?: string | null
   createdAt: string
   program: { id: string; name: string }
+  activity?: { id: string; name: string } | null
+  theme?: { id: string; name: string } | null
+  category?: { id: string; name: string } | null
   createdBy: { id: string; firstName: string; lastName: string }
   members: Array<{
     role: "DIRECTOR" | "MANAGER" | "CONTRIBUTOR"
     actorId: string
     actor: { id: string; firstName: string; lastName: string; email: string }
   }>
-  _count: { tasks: number; milestones: number }
+  _count: { tasks: number }
 }
 
 export default function ProjectDetailPage() {
@@ -55,6 +58,10 @@ export default function ProjectDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
+  // Progress editing
+  const [progressValue, setProgressValue] = useState<number>(0)
+  const [savingProgress, setSavingProgress] = useState(false)
+
   useEffect(() => {
     let cancelled = false
 
@@ -63,6 +70,7 @@ export default function ProjectDetailPage() {
       if (cancelled) return
       if (res.success) {
         setProject(res.data)
+        setProgressValue(res.data.progress)
       } else {
         toast.error("Project not found")
         router.push("/projects")
@@ -92,6 +100,22 @@ export default function ProjectDetailPage() {
     setDeleteOpen(false)
   }
 
+  const handleProgressSave = async () => {
+    if (!project || progressValue === project.progress) return
+    setSavingProgress(true)
+    const res = await api.patch(`/api/projects/${projectId}`, {
+      progress: progressValue,
+    })
+    if (res.success) {
+      toast.success("Progress updated")
+      setProject({ ...project, progress: progressValue })
+    } else {
+      toast.error("Failed to update progress")
+      setProgressValue(project.progress)
+    }
+    setSavingProgress(false)
+  }
+
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString()
   }
@@ -113,6 +137,12 @@ export default function ProjectDetailPage() {
   }
 
   if (!project) return null
+
+  const tags = [
+    project.theme && { label: "Theme", value: project.theme.name },
+    project.category && { label: "Category", value: project.category.name },
+    project.activity && { label: "Activity", value: project.activity.name },
+  ].filter(Boolean) as Array<{ label: string; value: string }>
 
   return (
     <div className="space-y-6">
@@ -136,6 +166,15 @@ export default function ProjectDetailPage() {
           </div>
           {project.objective && (
             <p className="text-muted-foreground ml-10">{project.objective}</p>
+          )}
+          {tags.length > 0 && (
+            <div className="ml-10 flex flex-wrap gap-2 pt-1">
+              {tags.map((tag) => (
+                <Badge key={tag.label} variant="secondary">
+                  {tag.label}: {tag.value}
+                </Badge>
+              ))}
+            </div>
           )}
         </div>
         <div className="flex gap-2">
@@ -167,61 +206,70 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      {/* Project Info Cards */}
-      <div className="grid gap-4 md:grid-cols-5">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Progress</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-semibold">{project.progress}%</div>
-            <Progress value={project.progress} className="mt-2 h-2" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Start Date</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-semibold">{formatDate(project.startDate)}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">End Date</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-semibold">
+      {/* Project Info */}
+      <div className="rounded-md border p-4 space-y-4">
+        {/* Progress row */}
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground w-16 shrink-0">Progress</span>
+            {canEdit ? (
+              <div className="flex items-center gap-3 flex-1">
+                <span className="text-sm font-semibold w-10">{progressValue}%</span>
+                <Slider
+                  value={[progressValue]}
+                  onValueChange={([v]) => setProgressValue(v)}
+                  min={0}
+                  max={100}
+                  step={5}
+                  className="flex-1"
+                />
+                {progressValue !== project.progress && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    onClick={handleProgressSave}
+                    disabled={savingProgress}
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 flex-1">
+                <span className="text-sm font-semibold w-10">{project.progress}%</span>
+                <Progress value={project.progress} className="h-2 flex-1" />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Details grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-y-3 gap-x-6">
+          <div>
+            <div className="text-sm text-muted-foreground">Start Date</div>
+            <div className="text-sm font-medium">{formatDate(project.startDate)}</div>
+          </div>
+          <div>
+            <div className="text-sm text-muted-foreground">End Date</div>
+            <div className="text-sm font-medium">
               {project.endDate ? formatDate(project.endDate) : "—"}
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Tasks</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-semibold">{project._count.tasks}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Budget</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-semibold">
+          </div>
+          <div>
+            <div className="text-sm text-muted-foreground">Tasks</div>
+            <div className="text-sm font-medium">{project._count.tasks}</div>
+          </div>
+          <div>
+            <div className="text-sm text-muted-foreground">Budget</div>
+            <div className="text-sm font-medium">
               {project.budgetEstimated
                 ? `${Number(project.budgetEstimated).toLocaleString()} EUR`
                 : "—"}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
-
-      <Separator />
-
-      {/* Milestones Section */}
-      <MilestonesSection projectId={projectId} projectRole={myProjectRole} />
 
       <Separator />
 

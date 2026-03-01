@@ -34,6 +34,7 @@ const HIDDEN_FIELDS = new Set([
   "id", "createdAt", "modifiedAt", "deletedAt", "version",
   "createdById", "projectId", "programId", "milestoneId",
   "taskId", "actorId", "supabaseUserId", "assignedAt",
+  "themeId", "categoryId", "activityId",
 ])
 
 function formatFieldName(key: string): string {
@@ -75,6 +76,25 @@ const actionBadgeVariant = (action: string) => {
     case "DELETE": return "destructive" as const
     case "END": return "outline" as const
     default: return "outline" as const
+  }
+}
+
+function getEntityLabel(entry: AuditEntry): string | null {
+  const data = { ...(entry.oldData ?? {}), ...(entry.newData ?? {}) }
+  switch (entry.entityType) {
+    case "Program":
+    case "Project":
+      return (data.name as string) ?? null
+    case "Task":
+      return (data.objective as string) ?? null
+    case "ProjectMember":
+    case "TaskContributor": {
+      const role = data.role as string | undefined
+      const name = data.actorName as string | undefined
+      return name ? `${name}${role ? ` (${role})` : ""}` : role ?? null
+    }
+    default:
+      return null
   }
 }
 
@@ -151,6 +171,7 @@ export function AuditLogTable({ entries, showEntityType = true }: AuditLogTableP
         <TableBody>
           {entries.map((entry) => {
             const isOpen = expanded.has(entry.id)
+            const entityLabel = getEntityLabel(entry)
             const hasState =
               (entry.action === "CREATE" && entry.newData) ||
               (entry.action === "UPDATE" && entry.oldData) ||
@@ -181,7 +202,14 @@ export function AuditLogTable({ entries, showEntityType = true }: AuditLogTableP
                 </TableCell>
                 {showEntityType && (
                   <TableCell>
-                    <span className="text-sm">{entry.entityType}</span>
+                    <div className="text-sm">
+                      <span>{entry.entityType}</span>
+                      {entityLabel && (
+                        <span className="block truncate max-w-[200px] text-muted-foreground" title={entityLabel}>
+                          {entityLabel}
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                 )}
                 <TableCell className="max-w-[350px]">

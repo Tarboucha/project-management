@@ -8,6 +8,7 @@ import {
   ApiErrors,
 } from "@/lib/utils/api-response"
 import { withAdmin } from "@/lib/utils/api-route-helper"
+import { enrichAuditEntries } from "@/lib/utils/audit"
 import type { Prisma, AuditAction } from "@/generated/prisma/client"
 
 type Params = { programId: string }
@@ -44,6 +45,8 @@ export const GET = withAdmin<Params>(async (_actor, request: NextRequest, params
       },
     },
   })
+
+  await enrichAuditEntries(logs)
 
   return cursorPaginatedResponse(logs, pagination)
 })

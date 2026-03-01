@@ -44,8 +44,6 @@ interface TaskDetail {
   startDate: string
   endDate?: string | null
   budgetEstimated?: number | string | null
-  milestoneId?: string | null
-  milestone?: { id: string; name: string } | null
   createdBy: { id: string; firstName: string; lastName: string }
   contributors: Array<{
     actorId?: string
@@ -259,7 +257,7 @@ export default function TaskDetailPage() {
       </div>
 
       {/* Info Cards */}
-      <div className="grid gap-4 md:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Progress</CardTitle>
@@ -324,16 +322,6 @@ export default function TaskDetailPage() {
               {task.budgetEstimated
                 ? `${Number(task.budgetEstimated).toLocaleString()} EUR`
                 : "\u2014"}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Milestone</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-semibold">
-              {task.milestone ? task.milestone.name : "\u2014"}
             </div>
           </CardContent>
         </Card>

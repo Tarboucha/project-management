@@ -7,6 +7,7 @@ import {
   parseFilters,
 } from "@/lib/utils/api-response"
 import { withAdmin } from "@/lib/utils/api-route-helper"
+import { enrichAuditEntries } from "@/lib/utils/audit"
 import type { Prisma, AuditAction } from "@/generated/prisma/client"
 
 export const GET = withAdmin(async (_actor, request: NextRequest) => {
@@ -33,6 +34,8 @@ export const GET = withAdmin(async (_actor, request: NextRequest) => {
       },
     },
   })
+
+  await enrichAuditEntries(logs)
 
   return cursorPaginatedResponse(logs, pagination)
 })

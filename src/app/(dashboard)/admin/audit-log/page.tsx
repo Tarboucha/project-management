@@ -84,7 +84,6 @@ export default function AdminAuditLogPage() {
             <SelectItem value="Program">Program</SelectItem>
             <SelectItem value="Project">Project</SelectItem>
             <SelectItem value="Task">Task</SelectItem>
-            <SelectItem value="Milestone">Milestone</SelectItem>
             <SelectItem value="ProjectMember">Project Member</SelectItem>
             <SelectItem value="TaskContributor">Task Contributor</SelectItem>
           </SelectContent>

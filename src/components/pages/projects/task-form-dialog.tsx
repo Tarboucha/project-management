@@ -22,11 +22,6 @@ import { createTaskSchema, updateTaskSchema } from "@/lib/validations/task"
 import { api } from "@/lib/utils/api-client"
 import { toast } from "sonner"
 
-interface Milestone {
-  id: string
-  name: string
-}
-
 interface TaskFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -36,7 +31,6 @@ interface TaskFormDialogProps {
     id: string
     objective: string
     details?: string | null
-    milestoneId?: string | null
     priority: string
     taskOrder: number
     startDate: string
@@ -54,31 +48,15 @@ export function TaskFormDialog({
 }: TaskFormDialogProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [milestones, setMilestones] = useState<Milestone[]>([])
-  const [selectedMilestone, setSelectedMilestone] = useState<string>(task?.milestoneId ?? "none")
   const [selectedPriority, setSelectedPriority] = useState<string>(task?.priority ?? "NORMAL")
   const isEditing = !!task
 
   useEffect(() => {
     if (!open) return
-    let cancelled = false
-
-    const fetchMilestones = async () => {
-      const res = await api.get<Milestone[]>(`/api/projects/${projectId}/milestones`)
-      if (cancelled) return
-      if (res.success) {
-        setMilestones(res.data)
-      }
-    }
-
-    fetchMilestones()
 
     // Reset selections when dialog opens
-    setSelectedMilestone(task?.milestoneId ?? "none")
     setSelectedPriority(task?.priority ?? "NORMAL")
     setError(null)
-
-    return () => { cancelled = true }
   }, [open, projectId, task])
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -94,12 +72,6 @@ export function TaskFormDialog({
       taskOrder: orderStr ? parseInt(orderStr, 10) : undefined,
       startDate: formData.get("startDate") as string,
       endDate: (formData.get("endDate") as string) || undefined,
-    }
-
-    if (selectedMilestone && selectedMilestone !== "none") {
-      data.milestoneId = selectedMilestone
-    } else if (isEditing) {
-      data.milestoneId = null
     }
 
     const budgetStr = formData.get("budgetEstimated") as string
@@ -191,38 +163,20 @@ export function TaskFormDialog({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label>Priority</Label>
-              <Select value={selectedPriority} onValueChange={setSelectedPriority}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="LOW">Low</SelectItem>
-                  <SelectItem value="NORMAL">Normal</SelectItem>
-                  <SelectItem value="MEDIUM">Medium</SelectItem>
-                  <SelectItem value="HIGH">High</SelectItem>
-                  <SelectItem value="URGENT">Urgent</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label>Milestone</Label>
-              <Select value={selectedMilestone} onValueChange={setSelectedMilestone}>
-                <SelectTrigger>
-                  <SelectValue placeholder="None" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {milestones.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="grid gap-2">
+            <Label>Priority</Label>
+            <Select value={selectedPriority} onValueChange={setSelectedPriority}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="LOW">Low</SelectItem>
+                <SelectItem value="NORMAL">Normal</SelectItem>
+                <SelectItem value="MEDIUM">Medium</SelectItem>
+                <SelectItem value="HIGH">High</SelectItem>
+                <SelectItem value="URGENT">Urgent</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
