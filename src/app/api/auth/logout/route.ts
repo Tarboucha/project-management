@@ -1,21 +1,11 @@
-import { createClient } from "@/lib/supabase/server"
-import { ApiErrors, successResponse, handleUnsupportedMethod } from "@/lib/utils/api-response"
+import { clearAuthCookie } from "@/lib/auth/session"
+import { successResponse, ApiErrors, handleUnsupportedMethod } from "@/lib/utils/api-response"
 
 export async function POST() {
   try {
-    const supabase = await createClient()
-
-    const { error: signOutError } = await supabase.auth.signOut()
-
-    if (signOutError) {
-      const errorMsg = signOutError.message.toLowerCase()
-      if (errorMsg.includes("session") || errorMsg.includes("no session")) {
-        return successResponse({ message: "No active session" }, "Already logged out")
-      }
-      return ApiErrors.serverError("Failed to sign out")
-    }
-
-    return successResponse({ message: "Successfully logged out" })
+    const response = successResponse({ message: "Successfully logged out" })
+    clearAuthCookie(response)
+    return response
   } catch {
     return ApiErrors.serverError("An unexpected error occurred during logout")
   }

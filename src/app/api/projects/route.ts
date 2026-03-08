@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { withRLS } from "@/lib/prisma/rls"
 import {
   handleUnsupportedMethod,
   parseCursorPagination,
@@ -43,31 +43,33 @@ export const GET = withAnyAuth(async (actor, request: NextRequest) => {
     ...(multiFilters.categoryId && { categoryId: { in: multiFilters.categoryId } }),
     // Non-admin: only projects where actor is a member
     ...(actor.systemRole !== "ADMIN" && {
-      members: { some: { actorId: actor.id } },
+      members: { some: { actorId: actor.id, deletedAt: null } },
     }),
   }
 
-  const projects = await prisma.project.findMany({
-    where,
-    take: pagination.limit + 1,
-    ...(pagination.cursor && {
-      cursor: { id: pagination.cursor },
-      skip: 1,
-    }),
-    orderBy,
-    include: {
-      program: { select: { id: true, name: true } },
-      activity: { select: { id: true, name: true } },
-      theme: { select: { id: true, name: true } },
-      category: { select: { id: true, name: true } },
-      _count: {
-        select: {
-          members: true,
-          tasks: { where: { deletedAt: null } },
+  const projects = await withRLS(actor, (db) =>
+    db.project.findMany({
+      where,
+      take: pagination.limit + 1,
+      ...(pagination.cursor && {
+        cursor: { id: pagination.cursor },
+        skip: 1,
+      }),
+      orderBy,
+      include: {
+        program: { select: { id: true, name: true } },
+        activity: { select: { id: true, name: true } },
+        theme: { select: { id: true, name: true } },
+        category: { select: { id: true, name: true } },
+        _count: {
+          select: {
+            members: true,
+            tasks: { where: { deletedAt: null } },
+          },
         },
       },
-    },
-  })
+    })
+  )
 
   return cursorPaginatedResponse(projects, pagination)
 })

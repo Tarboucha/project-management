@@ -4,7 +4,8 @@ import { useEffect, useState } from "react"
 import { api } from "@/lib/utils/api-client"
 import type { CursorPaginatedResult } from "@/types/api"
 import { Skeleton } from "@/components/ui/skeleton"
-import { AuditLogTable, type AuditEntry } from "@/components/pages/shared/audit-log-table"
+import { AuditLogTable } from "@/components/pages/shared/audit-log-table"
+import type { AuditEntry } from "@/types"
 
 interface AuditLogSectionProps {
   apiUrl: string

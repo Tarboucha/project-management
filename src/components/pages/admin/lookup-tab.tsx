@@ -28,15 +28,7 @@ import {
 import { DeleteConfirmDialog } from "@/components/pages/shared/delete-confirm-dialog"
 import { Plus, Pencil, Trash2, Search, ExternalLink } from "lucide-react"
 import { toast } from "sonner"
-
-interface LookupItem {
-  id: string
-  name: string
-  code?: string | null
-  description?: string | null
-  isActive: boolean
-  _count: { projects: number }
-}
+import type { LookupItem } from "@/types"
 
 interface LookupTabProps {
   type: "activities" | "themes" | "categories"

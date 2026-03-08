@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select"
 import { createTaskSchema, updateTaskSchema } from "@/lib/validations/task"
 import { api } from "@/lib/utils/api-client"
+import { DatePicker } from "@/components/ui/date-picker"
 import { toast } from "sonner"
 
 interface TaskFormDialogProps {
@@ -116,11 +117,6 @@ export function TaskFormDialog({
     }
   }
 
-  const formatDate = (dateStr?: string | null) => {
-    if (!dateStr) return ""
-    return dateStr.slice(0, 10)
-  }
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[550px]">
@@ -181,22 +177,20 @@ export function TaskFormDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="startDate">Start Date *</Label>
-              <Input
-                id="startDate"
+              <Label>Start Date *</Label>
+              <DatePicker
                 name="startDate"
-                type="date"
-                defaultValue={formatDate(task?.startDate)}
+                defaultValue={task?.startDate?.slice(0, 10)}
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="endDate">End Date</Label>
-              <Input
-                id="endDate"
+              <Label>End Date</Label>
+              <DatePicker
                 name="endDate"
-                type="date"
-                defaultValue={formatDate(task?.endDate)}
+                defaultValue={task?.endDate?.slice(0, 10)}
+                disabled={isLoading}
               />
             </div>
           </div>

@@ -11,18 +11,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { StateBadge } from "@/components/pages/shared/state-badge"
 import { DeleteConfirmDialog } from "@/components/pages/shared/delete-confirm-dialog"
 import { AuditLogSection } from "@/components/pages/shared/audit-log-section"
 import { TaskFormDialog } from "@/components/pages/projects/task-form-dialog"
+import { DeliverablesSection } from "@/components/pages/projects/deliverables-section"
 import { Slider } from "@/components/ui/slider"
 import {
   Select,
@@ -31,45 +24,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ArrowLeft, Check, Pencil, Trash2, UserMinus, UserPlus } from "lucide-react"
+import { ArrowLeft, Check, Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
+import type { TaskDetail, ProjectDetail } from "@/types"
+import { formatDate } from "@/lib/utils/format"
+import { priorityVariant } from "@/lib/utils/badges"
 
-interface TaskDetail {
-  id: string
-  objective: string
-  details?: string | null
-  state: "ACTIVE" | "ENDED"
-  priority: "LOW" | "NORMAL" | "MEDIUM" | "HIGH" | "URGENT"
-  progress: number
-  startDate: string
-  endDate?: string | null
-  budgetEstimated?: number | string | null
-  createdBy: { id: string; firstName: string; lastName: string }
-  contributors: Array<{
-    actorId?: string
-    actor: { id: string; firstName: string; lastName: string; email: string }
-  }>
-  _count: { deliverables: number; timeEntries: number }
-}
-
-interface ProjectInfo {
-  id: string
-  name: string
-  members: Array<{
-    role: "DIRECTOR" | "MANAGER" | "CONTRIBUTOR"
-    actorId: string
-    actor: { id: string; firstName: string; lastName: string; email: string }
-  }>
-}
-
-const priorityVariant = (priority: string) => {
-  switch (priority) {
-    case "URGENT": return "destructive" as const
-    case "HIGH": return "destructive" as const
-    case "MEDIUM": return "secondary" as const
-    default: return "outline" as const
-  }
-}
+type ProjectInfo = Pick<ProjectDetail, "id" | "name" | "members">
 
 export default function TaskDetailPage() {
   const { projectId, taskId } = useParams<{ projectId: string; taskId: string }>()
@@ -87,13 +48,8 @@ export default function TaskDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Remove contributor
-  const [removeOpen, setRemoveOpen] = useState(false)
-  const [removingContributor, setRemovingContributor] = useState<TaskDetail["contributors"][0] | null>(null)
-  const [removeLoading, setRemoveLoading] = useState(false)
-
-  // Add contributor
-  const [addingContributor, setAddingContributor] = useState(false)
+  // Owner change
+  const [savingOwner, setSavingOwner] = useState(false)
 
   // Progress editing
   const [progressValue, setProgressValue] = useState<number>(0)
@@ -146,33 +102,18 @@ export default function TaskDetailPage() {
     setDeleteOpen(false)
   }
 
-  const handleRemoveContributor = async () => {
-    if (!removingContributor) return
-    setRemoveLoading(true)
-    const res = await api.delete(
-      `/api/projects/${projectId}/tasks/${taskId}/contributors/${removingContributor.actor.id}`
-    )
+  const handleOwnerChange = async (actorId: string) => {
+    if (!task) return
+    setSavingOwner(true)
+    const ownerId = actorId === "none" ? null : actorId
+    const res = await api.patch(`/api/projects/${projectId}/tasks/${taskId}`, { ownerId })
     if (res.success) {
-      toast.success("Contributor removed")
+      toast.success(ownerId ? "Owner assigned" : "Owner removed")
       refetch()
     } else {
-      toast.error("Failed to remove contributor")
+      toast.error("Failed to update owner")
     }
-    setRemoveLoading(false)
-    setRemoveOpen(false)
-    setRemovingContributor(null)
-  }
-
-  const handleAddContributor = async (actorId: string) => {
-    setAddingContributor(true)
-    const res = await api.post(`/api/projects/${projectId}/tasks/${taskId}/contributors`, { actorId })
-    if (res.success) {
-      toast.success("Contributor added")
-      refetch()
-    } else {
-      toast.error("Failed to add contributor")
-    }
-    setAddingContributor(false)
+    setSavingOwner(false)
   }
 
   const handleProgressSave = async () => {
@@ -190,8 +131,6 @@ export default function TaskDetailPage() {
     }
     setSavingProgress(false)
   }
-
-  const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString()
 
   // Permissions
   const admin = actor?.systemRole === "ADMIN"
@@ -340,88 +279,63 @@ export default function TaskDetailPage() {
 
       <Separator />
 
-      {/* Contributors */}
+      {/* Owner */}
       <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold">Contributors ({task.contributors.length})</h2>
-          {canManage && project && (() => {
-            const existingIds = new Set(task.contributors.map((c) => c.actor.id))
-            const eligible = project.members.filter((m) => !existingIds.has(m.actorId))
-            if (eligible.length === 0) return null
-            return (
-              <Select
-                value=""
-                onValueChange={handleAddContributor}
-                disabled={addingContributor}
-              >
-                <SelectTrigger className="w-auto gap-1 h-8 px-2">
-                  <UserPlus className="h-4 w-4" />
-                  <SelectValue placeholder="Add..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {eligible.map((m) => (
-                    <SelectItem key={m.actorId} value={m.actorId}>
-                      {m.actor.firstName} {m.actor.lastName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )
-          })()}
-        </div>
-        {task.contributors.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No contributors assigned.</p>
-        ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  {canManage && <TableHead className="w-20" />}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {task.contributors.map((contributor) => (
-                  <TableRow key={contributor.actor.id}>
-                    <TableCell className="font-medium">
-                      {contributor.actor.firstName} {contributor.actor.lastName}
-                      {contributor.actor.id === actor?.id && (
-                        <span className="ml-2 text-xs text-muted-foreground">(you)</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {contributor.actor.email}
-                    </TableCell>
-                    {canManage && (
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive"
-                          onClick={() => {
-                            setRemovingContributor(contributor)
-                            setRemoveOpen(true)
-                          }}
-                        >
-                          <UserMinus className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    )}
-                  </TableRow>
+        <h2 className="text-lg font-semibold">Task Owner</h2>
+        {canManage && project ? (
+          <div className="flex items-center gap-3">
+            <Select
+              value={task.ownerId ?? "none"}
+              onValueChange={handleOwnerChange}
+              disabled={savingOwner}
+            >
+              <SelectTrigger className="w-[250px]">
+                <SelectValue placeholder="Select owner..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No owner</SelectItem>
+                {project.members.map((m) => (
+                  <SelectItem key={m.actorId} value={m.actorId}>
+                    {m.actor.firstName} {m.actor.lastName}
+                  </SelectItem>
                 ))}
-              </TableBody>
-            </Table>
+              </SelectContent>
+            </Select>
+            {task.owner && task.owner.email && (
+              <span className="text-sm text-muted-foreground">{task.owner.email}</span>
+            )}
           </div>
+        ) : task.owner ? (
+          <p className="text-sm">
+            {task.owner.firstName} {task.owner.lastName}
+            {task.owner.id === actor?.id && (
+              <span className="ml-2 text-xs text-muted-foreground">(you)</span>
+            )}
+            {task.owner.email && (
+              <span className="ml-2 text-muted-foreground">{task.owner.email}</span>
+            )}
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">No owner assigned.</p>
         )}
       </div>
+
+      {/* Deliverables */}
+      <Separator />
+      <DeliverablesSection
+        projectId={projectId}
+        taskId={taskId}
+        canManage={canManage}
+        isTaskOwner={task.ownerId === actor?.id}
+        currentActorId={actor?.id}
+      />
 
       {/* Audit Log */}
       {canManage && (
         <>
           <Separator />
           <AuditLogSection
-            apiUrl={`/api/projects/${projectId}/audit-log?entityType=Task&entityId=${taskId}`}
+            apiUrl={`/api/projects/${projectId}/audit-log?taskId=${taskId}`}
             title="Task History"
           />
         </>
@@ -445,18 +359,6 @@ export default function TaskDetailPage() {
         isLoading={isDeleting}
       />
 
-      <DeleteConfirmDialog
-        open={removeOpen}
-        onOpenChange={setRemoveOpen}
-        onConfirm={handleRemoveContributor}
-        title="Remove Contributor"
-        description={
-          removingContributor
-            ? `Remove ${removingContributor.actor.firstName} ${removingContributor.actor.lastName} from this task?`
-            : ""
-        }
-        isLoading={removeLoading}
-      />
     </div>
   )
 }

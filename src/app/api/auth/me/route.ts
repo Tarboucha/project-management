@@ -3,7 +3,19 @@ import { successResponse, handleUnsupportedMethod } from "@/lib/utils/api-respon
 import { withAnyAuth } from "@/lib/utils/api-route-helper"
 
 export const GET = withAnyAuth(async (actor, _request: NextRequest) => {
-  return successResponse({ actor })
+  return successResponse({
+    actor: {
+      id: actor.id,
+      firstName: actor.firstName,
+      lastName: actor.lastName,
+      email: actor.email,
+      systemRole: actor.systemRole,
+      isActive: actor.isActive,
+      hourlyRate: actor.hourlyRate,
+      createdAt: actor.createdAt,
+      updatedAt: actor.updatedAt,
+    },
+  })
 })
 
 export async function POST() { return handleUnsupportedMethod(["GET"]) }

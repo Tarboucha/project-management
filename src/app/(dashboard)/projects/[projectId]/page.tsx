@@ -16,32 +16,12 @@ import { DeleteConfirmDialog } from "@/components/pages/shared/delete-confirm-di
 import { ProjectFormDialog } from "@/components/pages/projects/project-form-dialog"
 import { ProjectMembersSection } from "@/components/pages/projects/project-members-section"
 import { TasksSection } from "@/components/pages/projects/tasks-section"
+import { TodosSection } from "@/components/pages/projects/todos-section"
 import { AuditLogSection } from "@/components/pages/shared/audit-log-section"
 import { ArrowLeft, Check, FileDown, Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
-
-interface ProjectDetail {
-  id: string
-  name: string
-  objective?: string | null
-  state: "ACTIVE" | "ENDED"
-  progress: number
-  startDate: string
-  endDate?: string | null
-  budgetEstimated?: string | null
-  createdAt: string
-  program: { id: string; name: string }
-  activity?: { id: string; name: string } | null
-  theme?: { id: string; name: string } | null
-  category?: { id: string; name: string } | null
-  createdBy: { id: string; firstName: string; lastName: string }
-  members: Array<{
-    role: "DIRECTOR" | "MANAGER" | "CONTRIBUTOR"
-    actorId: string
-    actor: { id: string; firstName: string; lastName: string; email: string }
-  }>
-  _count: { tasks: number }
-}
+import type { ProjectDetail } from "@/types"
+import { formatDate } from "@/lib/utils/format"
 
 export default function ProjectDetailPage() {
   const { projectId } = useParams<{ projectId: string }>()
@@ -114,10 +94,6 @@ export default function ProjectDetailPage() {
       setProgressValue(project.progress)
     }
     setSavingProgress(false)
-  }
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString()
   }
 
   // Determine the current user's project role
@@ -280,6 +256,11 @@ export default function ProjectDetailPage() {
 
       {/* Members Section */}
       <ProjectMembersSection projectId={projectId} projectRole={myProjectRole} />
+
+      <Separator />
+
+      {/* Todos Section */}
+      <TodosSection projectId={projectId} canManage={canEdit} members={project.members} />
 
       {/* Audit Log Section */}
       {canEdit && (

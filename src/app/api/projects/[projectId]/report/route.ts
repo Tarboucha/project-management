@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { withRLS } from "@/lib/prisma/rls"
 import { ApiErrors, handleUnsupportedMethod } from "@/lib/utils/api-response"
 import { withAdminOrProjectRole } from "@/lib/utils/api-route-helper"
 import { buildProjectReport } from "@/lib/pdf/project-report"
@@ -35,40 +35,39 @@ async function generatePdfBuffer(docDefinition: TDocumentDefinitions): Promise<B
   })
 }
 
-export const GET = withAdminOrProjectRole<Params>("CONTRIBUTOR", async (_actor, _request: NextRequest, params) => {
+export const GET = withAdminOrProjectRole<Params>("CONTRIBUTOR", async (actor, _request: NextRequest, params) => {
   const { projectId } = params!
 
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    include: {
-      program: { select: { name: true } },
-      activity: { select: { name: true } },
-      theme: { select: { name: true } },
-      category: { select: { name: true } },
-      members: {
-        include: {
-          actor: { select: { firstName: true, lastName: true, email: true } },
+  const project = await withRLS(actor, (db) =>
+    db.project.findUnique({
+      where: { id: projectId },
+      include: {
+        program: { select: { name: true } },
+        activity: { select: { name: true } },
+        theme: { select: { name: true } },
+        category: { select: { name: true } },
+        members: {
+          where: { deletedAt: null },
+          include: {
+            actor: { select: { firstName: true, lastName: true, email: true } },
+          },
         },
-      },
-      tasks: {
-        where: { deletedAt: null },
-        orderBy: { taskOrder: "asc" },
-        select: {
-          taskOrder: true,
-          objective: true,
-          details: true,
-          priority: true,
-          state: true,
-          progress: true,
-          contributors: {
-            include: {
-              actor: { select: { firstName: true, lastName: true } },
-            },
+        tasks: {
+          where: { deletedAt: null },
+          orderBy: { taskOrder: "asc" },
+          select: {
+            taskOrder: true,
+            objective: true,
+            details: true,
+            priority: true,
+            state: true,
+            progress: true,
+            owner: { select: { firstName: true, lastName: true } },
           },
         },
       },
-    },
-  })
+    })
+  )
 
   if (!project || project.deletedAt) {
     return ApiErrors.notFound("Project")

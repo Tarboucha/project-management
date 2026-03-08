@@ -25,29 +25,9 @@ import { AuditLogSection } from "@/components/pages/shared/audit-log-section"
 import { Separator } from "@/components/ui/separator"
 import { ArrowLeft, Plus, Pencil, Trash2, Briefcase } from "lucide-react"
 import { toast } from "sonner"
-
-interface Program {
-  id: string
-  name: string
-  description?: string | null
-  state: "ACTIVE" | "ENDED"
-  startDate: string
-  endDate?: string | null
-  budgetEstimated?: string | null
-  currency?: string | null
-  createdAt: string
-  createdBy: { id: string; firstName: string; lastName: string }
-  _count: { projects: number }
-}
-
-interface Project {
-  id: string
-  name: string
-  state: "ACTIVE" | "ENDED"
-  progress: number
-  startDate: string
-  _count: { members: number; tasks: number }
-}
+import type { Program } from "@/types"
+import type { ProjectListItem as Project } from "@/types"
+import { formatDate } from "@/lib/utils/format"
 
 
 export default function ProgramDetailPage() {
@@ -122,10 +102,6 @@ export default function ProgramDetailPage() {
     }
     setIsDeleting(false)
     setDeleteOpen(false)
-  }
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString()
   }
 
   if (isLoading || !isInitialized) {

@@ -19,16 +19,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { StateBadge } from "@/components/pages/shared/state-badge"
 import { FacetedFilter } from "@/components/shared/faceted-filter"
 import { Search, Briefcase, FileDown, X, ArrowUp, ArrowDown } from "lucide-react"
-
-interface Project {
-  id: string
-  name: string
-  state: "ACTIVE" | "ENDED"
-  progress: number
-  startDate: string
-  program: { id: string; name: string }
-  _count: { members: number; tasks: number }
-}
+import type { ProjectListItem as Project } from "@/types"
+import { formatDate } from "@/lib/utils/format"
 
 
 export default function ProjectsPage() {
@@ -119,10 +111,6 @@ export default function ProjectsPage() {
     return sortOrder === "asc"
       ? <ArrowUp className="inline h-3.5 w-3.5 ml-1" />
       : <ArrowDown className="inline h-3.5 w-3.5 ml-1" />
-  }
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString()
   }
 
   const hasActiveFilters = activityIds.length > 0 || themeIds.length > 0 || categoryIds.length > 0

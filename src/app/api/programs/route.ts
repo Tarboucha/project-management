@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { withRLS } from "@/lib/prisma/rls"
 import {
   successResponse,
   handleUnsupportedMethod,
@@ -13,7 +13,6 @@ import {
 } from "@/lib/utils/api-response"
 import { withAnyAuth, withAdmin } from "@/lib/utils/api-route-helper"
 import { createProgramSchema } from "@/lib/validations/program"
-import { auditLog } from "@/lib/utils/audit"
 import type { Prisma } from "@/generated/prisma/client"
 
 export const GET = withAnyAuth(async (actor, request: NextRequest) => {
@@ -33,25 +32,27 @@ export const GET = withAnyAuth(async (actor, request: NextRequest) => {
       projects: {
         some: {
           deletedAt: null,
-          members: { some: { actorId: actor.id } },
+          members: { some: { actorId: actor.id, deletedAt: null } },
         },
       },
     }),
   }
 
-  const programs = await prisma.program.findMany({
-    where,
-    take: pagination.limit + 1,
-    ...(pagination.cursor && {
-      cursor: { id: pagination.cursor },
-      skip: 1,
-    }),
-    orderBy: { [sorting.field]: sorting.order },
-    include: {
-      _count: { select: { projects: { where: { deletedAt: null } } } },
-      createdBy: { select: { id: true, firstName: true, lastName: true } },
-    },
-  })
+  const programs = await withRLS(actor, (db) =>
+    db.program.findMany({
+      where,
+      take: pagination.limit + 1,
+      ...(pagination.cursor && {
+        cursor: { id: pagination.cursor },
+        skip: 1,
+      }),
+      orderBy: { [sorting.field]: sorting.order },
+      include: {
+        _count: { select: { projects: { where: { deletedAt: null } } } },
+        createdBy: { select: { id: true, firstName: true, lastName: true } },
+      },
+    })
+  )
 
   return cursorPaginatedResponse(programs, pagination)
 })
@@ -64,16 +65,16 @@ export const POST = withAdmin(async (actor, request: NextRequest) => {
     return ApiErrors.validationError(parseZodError(validation.error))
   }
 
-  const program = await prisma.program.create({
-    data: {
-      ...validation.data,
-      startDate: new Date(validation.data.startDate),
-      ...(validation.data.endDate && { endDate: new Date(validation.data.endDate) }),
-      createdById: actor.id,
-    },
-  })
-
-  await auditLog({ entityType: "Program", entityId: program.id, action: "CREATE", actorId: actor.id, newData: program })
+  const program = await withRLS(actor, (db) =>
+    db.program.create({
+      data: {
+        ...validation.data,
+        startDate: new Date(validation.data.startDate),
+        ...(validation.data.endDate && { endDate: new Date(validation.data.endDate) }),
+        createdById: actor.id,
+      },
+    })
+  )
 
   return successResponse(program, "Program created", HTTP_STATUS.CREATED)
 })

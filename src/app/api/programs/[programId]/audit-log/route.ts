@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { withRLS } from "@/lib/prisma/rls"
 import {
   handleUnsupportedMethod,
   parseCursorPagination,
@@ -13,42 +13,44 @@ import type { Prisma, AuditAction } from "@/generated/prisma/client"
 
 type Params = { programId: string }
 
-export const GET = withAdmin<Params>(async (_actor, request: NextRequest, params) => {
+export const GET = withAdmin<Params>(async (actor, request: NextRequest, params) => {
   const { programId } = params!
-
-  const program = await prisma.program.findUnique({ where: { id: programId } })
-  if (!program || program.deletedAt) {
-    return ApiErrors.notFound("Program")
-  }
 
   const searchParams = request.nextUrl.searchParams
   const pagination = parseCursorPagination(searchParams)
   const filters = parseFilters(searchParams, ["action"])
 
-  const where: Prisma.AuditLogWhereInput = {
-    entityType: "Program",
-    entityId: programId,
-    ...(filters.action && { action: filters.action as AuditAction }),
-  }
+  return withRLS(actor, async (db) => {
+    const program = await db.program.findUnique({ where: { id: programId } })
+    if (!program || program.deletedAt) {
+      return ApiErrors.notFound("Program")
+    }
 
-  const logs = await prisma.auditLog.findMany({
-    where,
-    take: pagination.limit + 1,
-    ...(pagination.cursor && {
-      cursor: { id: pagination.cursor },
-      skip: 1,
-    }),
-    orderBy: { createdAt: "desc" },
-    include: {
-      actor: {
-        select: { id: true, firstName: true, lastName: true },
+    const where: Prisma.AuditLogWhereInput = {
+      tableName: "program",
+      recordId: programId,
+      ...(filters.action && { action: filters.action as AuditAction }),
+    }
+
+    const logs = await db.auditLog.findMany({
+      where,
+      take: pagination.limit + 1,
+      ...(pagination.cursor && {
+        cursor: { id: pagination.cursor },
+        skip: 1,
+      }),
+      orderBy: { createdAt: "desc" },
+      include: {
+        actor: {
+          select: { id: true, firstName: true, lastName: true },
+        },
       },
-    },
+    })
+
+    await enrichAuditEntries(logs)
+
+    return cursorPaginatedResponse(logs, pagination)
   })
-
-  await enrichAuditEntries(logs)
-
-  return cursorPaginatedResponse(logs, pagination)
 })
 
 export async function POST() { return handleUnsupportedMethod(["GET"]) }

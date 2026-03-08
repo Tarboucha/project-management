@@ -22,11 +22,7 @@ import { Plus } from "lucide-react"
 import { api } from "@/lib/utils/api-client"
 import { toast } from "sonner"
 import type { CursorPaginatedResult } from "@/types/api"
-
-interface LookupItem {
-  id: string
-  name: string
-}
+import type { NamedEntity as LookupItem } from "@/types"
 
 interface LookupSelectFieldProps {
   label: string
@@ -127,7 +123,7 @@ export function LookupSelectField({
       </div>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-100">
           <DialogHeader>
             <DialogTitle>Create {label}</DialogTitle>
           </DialogHeader>

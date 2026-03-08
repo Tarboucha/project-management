@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { LookupSelectField } from "@/components/shared/lookup-select-field"
 import { createProjectSchema, updateProjectSchema } from "@/lib/validations/project"
 import { api } from "@/lib/utils/api-client"
+import { DatePicker } from "@/components/ui/date-picker"
 import { toast } from "sonner"
 
 interface ProjectFormDialogProps {
@@ -119,11 +120,6 @@ export function ProjectFormDialog({
     }
   }
 
-  const formatDate = (dateStr?: string | null) => {
-    if (!dateStr) return ""
-    return dateStr.slice(0, 10)
-  }
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
@@ -192,22 +188,20 @@ export function ProjectFormDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="startDate">Start Date *</Label>
-              <Input
-                id="startDate"
+              <Label>Start Date *</Label>
+              <DatePicker
                 name="startDate"
-                type="date"
-                defaultValue={formatDate(project?.startDate)}
+                defaultValue={project?.startDate?.slice(0, 10)}
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="endDate">End Date</Label>
-              <Input
-                id="endDate"
+              <Label>End Date</Label>
+              <DatePicker
                 name="endDate"
-                type="date"
-                defaultValue={formatDate(project?.endDate)}
+                defaultValue={project?.endDate?.slice(0, 10)}
+                disabled={isLoading}
               />
             </div>
           </div>

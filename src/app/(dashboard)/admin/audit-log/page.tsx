@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ScrollText } from "lucide-react"
-import { AuditLogTable, type AuditEntry } from "@/components/pages/shared/audit-log-table"
+import { AuditLogTable } from "@/components/pages/shared/audit-log-table"
+import type { AuditEntry } from "@/types"
 
 export default function AdminAuditLogPage() {
   const [entries, setEntries] = useState<AuditEntry[]>([])
@@ -31,7 +32,7 @@ export default function AdminAuditLogPage() {
     const doFetch = async () => {
       const params = new URLSearchParams()
       params.set("limit", "20")
-      if (entityTypeFilter !== "all") params.set("entityType", entityTypeFilter)
+      if (entityTypeFilter !== "all") params.set("tableName", entityTypeFilter)
       if (actionFilter !== "all") params.set("action", actionFilter)
 
       const res = await api.get(`/api/admin/audit-log?${params}`)
@@ -54,7 +55,7 @@ export default function AdminAuditLogPage() {
     const params = new URLSearchParams()
     params.set("cursor", nextCursor)
     params.set("limit", "20")
-    if (entityTypeFilter !== "all") params.set("entityType", entityTypeFilter)
+    if (entityTypeFilter !== "all") params.set("tableName", entityTypeFilter)
     if (actionFilter !== "all") params.set("action", actionFilter)
 
     const res = await api.get(`/api/admin/audit-log?${params}`)
@@ -81,11 +82,13 @@ export default function AdminAuditLogPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="Program">Program</SelectItem>
-            <SelectItem value="Project">Project</SelectItem>
-            <SelectItem value="Task">Task</SelectItem>
-            <SelectItem value="ProjectMember">Project Member</SelectItem>
-            <SelectItem value="TaskContributor">Task Contributor</SelectItem>
+            <SelectItem value="program">Program</SelectItem>
+            <SelectItem value="project">Project</SelectItem>
+            <SelectItem value="task">Task</SelectItem>
+            <SelectItem value="deliverable">Deliverable</SelectItem>
+            <SelectItem value="attachment">Attachment</SelectItem>
+            <SelectItem value="todo">Todo</SelectItem>
+            <SelectItem value="project_member">Project Member</SelectItem>
           </SelectContent>
         </Select>
         <Select value={actionFilter} onValueChange={(v) => { setIsLoading(true); setActionFilter(v) }}>

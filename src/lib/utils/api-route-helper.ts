@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
-import { prisma } from "@/lib/prisma"
+import { verifyToken } from "@/lib/auth/jwt"
+import { getTokenFromRequest } from "@/lib/auth/session"
+import { prisma } from "@/lib/prisma/client"
 import { ApiErrors } from "@/lib/utils/api-response"
 import type { Actor, ProjectRole } from "@/generated/prisma/client"
 import type { AuthenticatedHandler, WithAuthOptions, ProjectRoleHandler } from "@/types/handlers"
@@ -23,22 +24,22 @@ function hasMinProjectRole(actorRole: ProjectRole, minRole: ProjectRole): boolea
 // CORE AUTH
 // ============================================================
 
-export async function getAuthenticatedActor(): Promise<Actor> {
-  const supabase = await createClient()
+export async function getAuthenticatedActor(request: NextRequest): Promise<Actor> {
+  const token = getTokenFromRequest(request)
+  if (!token) throw new Error("UNAUTHORIZED")
 
-  const { data, error: claimsError } = await supabase.auth.getClaims()
-
-  if (claimsError || !data?.claims?.sub) {
+  let payload
+  try {
+    payload = verifyToken(token)
+  } catch {
     throw new Error("UNAUTHORIZED")
   }
 
-  const authUserId = data.claims.sub
-
   const actor = await prisma.actor.findUnique({
-    where: { supabaseUserId: authUserId },
+    where: { id: payload.sub },
   })
 
-  if (!actor || actor.deletedAt) {
+  if (!actor || actor.deletedAt || !actor.isActive) {
     throw new Error("UNAUTHORIZED")
   }
 
@@ -60,7 +61,7 @@ export function withAuth<TParams = Record<string, string>>(
     context?: { params: Promise<TParams> }
   ): Promise<NextResponse> => {
     try {
-      const actor = await getAuthenticatedActor()
+      const actor = await getAuthenticatedActor(request)
 
       if (requireAdmin && actor.systemRole !== "ADMIN") {
         return ApiErrors.forbidden("Admin access required")
@@ -124,7 +125,7 @@ export function withProjectRole<TParams extends { projectId: string } = { projec
     context?: { params: Promise<TParams> }
   ): Promise<NextResponse> => {
     try {
-      const actor = await getAuthenticatedActor()
+      const actor = await getAuthenticatedActor(request)
 
       let params: TParams | undefined
       if (context?.params) {
@@ -142,7 +143,7 @@ export function withProjectRole<TParams extends { projectId: string } = { projec
         },
       })
 
-      if (!membership || !hasMinProjectRole(membership.role, minRole)) {
+      if (!membership || membership.deletedAt || !hasMinProjectRole(membership.role, minRole)) {
         return ApiErrors.forbidden(
           `Requires at least ${minRole} role on this project`
         )
@@ -181,7 +182,7 @@ export function withAdminOrProjectRole<TParams extends { projectId: string } = {
     context?: { params: Promise<TParams> }
   ): Promise<NextResponse> => {
     try {
-      const actor = await getAuthenticatedActor()
+      const actor = await getAuthenticatedActor(request)
 
       let params: TParams | undefined
       if (context?.params) {
@@ -202,7 +203,7 @@ export function withAdminOrProjectRole<TParams extends { projectId: string } = {
           },
         })
 
-        if (!membership || !hasMinProjectRole(membership.role, minRole)) {
+        if (!membership || membership.deletedAt || !hasMinProjectRole(membership.role, minRole)) {
           return ApiErrors.forbidden(
             `Requires admin or at least ${minRole} role on this project`
           )

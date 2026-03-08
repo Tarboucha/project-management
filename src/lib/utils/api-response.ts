@@ -28,7 +28,6 @@ export const ERROR_CODES = {
   INVALID_CREDENTIALS: "INVALID_CREDENTIALS",
   FORBIDDEN: "FORBIDDEN",
   TOO_MANY_REQUESTS: "TOO_MANY_REQUESTS",
-  EMAIL_NOT_CONFIRMED: "EMAIL_NOT_CONFIRMED",
   SERVER_ERROR: "SERVER_ERROR",
 } as const
 
@@ -71,9 +70,6 @@ export const ApiErrors = {
 
   invalidCredentials: (message: string = "Invalid email or password") =>
     errorResponse(message, ERROR_CODES.INVALID_CREDENTIALS, HTTP_STATUS.UNAUTHORIZED),
-
-  emailNotConfirmed: (message: string = "Please confirm your email address before logging in") =>
-    errorResponse(message, ERROR_CODES.EMAIL_NOT_CONFIRMED, HTTP_STATUS.UNAUTHORIZED),
 
   forbidden: (message: string = "Insufficient permissions") =>
     errorResponse(message, ERROR_CODES.INSUFFICIENT_PERMISSIONS, HTTP_STATUS.FORBIDDEN),

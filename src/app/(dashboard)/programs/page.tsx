@@ -28,20 +28,8 @@ import { DeleteConfirmDialog } from "@/components/pages/shared/delete-confirm-di
 import { ProgramFormDialog } from "@/components/pages/programs/program-form-dialog"
 import { Plus, Search, FolderKanban } from "lucide-react"
 import { toast } from "sonner"
-
-interface Program {
-  id: string
-  name: string
-  description?: string | null
-  state: "ACTIVE" | "ENDED"
-  startDate: string
-  endDate?: string | null
-  budgetEstimated?: string | null
-  currency?: string | null
-  createdAt: string
-  createdBy: { id: string; firstName: string; lastName: string }
-  _count: { projects: number }
-}
+import type { Program } from "@/types"
+import { formatDate } from "@/lib/utils/format"
 
 
 export default function ProgramsPage() {
@@ -142,10 +130,6 @@ export default function ProgramsPage() {
   const openCreate = () => {
     setEditingProgram(undefined)
     setFormOpen(true)
-  }
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString()
   }
 
   return (

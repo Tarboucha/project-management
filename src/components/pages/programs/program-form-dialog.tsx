@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { createProgramSchema, updateProgramSchema } from "@/lib/validations/program"
 import { api } from "@/lib/utils/api-client"
+import { DatePicker } from "@/components/ui/date-picker"
 import { toast } from "sonner"
 
 interface ProgramFormDialogProps {
@@ -93,12 +94,6 @@ export function ProgramFormDialog({
     }
   }
 
-  // Format date for input (YYYY-MM-DD)
-  const formatDate = (dateStr?: string | null) => {
-    if (!dateStr) return ""
-    return dateStr.slice(0, 10)
-  }
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
@@ -129,22 +124,20 @@ export function ProgramFormDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="startDate">Start Date *</Label>
-              <Input
-                id="startDate"
+              <Label>Start Date *</Label>
+              <DatePicker
                 name="startDate"
-                type="date"
-                defaultValue={formatDate(program?.startDate)}
+                defaultValue={program?.startDate?.slice(0, 10)}
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="endDate">End Date</Label>
-              <Input
-                id="endDate"
+              <Label>End Date</Label>
+              <DatePicker
                 name="endDate"
-                type="date"
-                defaultValue={formatDate(program?.endDate)}
+                defaultValue={program?.endDate?.slice(0, 10)}
+                disabled={isLoading}
               />
             </div>
           </div>

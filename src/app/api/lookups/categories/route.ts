@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { withRLS } from "@/lib/prisma/rls"
 import {
   successResponse,
   handleUnsupportedMethod,
@@ -13,10 +13,9 @@ import {
 } from "@/lib/utils/api-response"
 import { withAnyAuth, withAdmin } from "@/lib/utils/api-route-helper"
 import { createLookupSchema } from "@/lib/validations/lookups"
-import { auditLog } from "@/lib/utils/audit"
 import type { Prisma } from "@/generated/prisma/client"
 
-export const GET = withAnyAuth(async (_actor, request: NextRequest): Promise<NextResponse> => {
+export const GET = withAnyAuth(async (actor, request: NextRequest): Promise<NextResponse> => {
   const searchParams = request.nextUrl.searchParams
   const pagination = parseCursorPagination(searchParams)
   const filters = parseFilters(searchParams, ["search", "isActive"])
@@ -30,18 +29,20 @@ export const GET = withAnyAuth(async (_actor, request: NextRequest): Promise<Nex
     }),
   }
 
-  const categories = await prisma.category.findMany({
-    where,
-    take: pagination.limit + 1,
-    ...(pagination.cursor && {
-      cursor: { id: pagination.cursor },
-      skip: 1,
-    }),
-    orderBy: { [sorting.field]: sorting.order },
-    include: { _count: { select: { projects: { where: { deletedAt: null } } } } },
-  })
+  return withRLS(actor, async (db) => {
+    const categories = await db.category.findMany({
+      where,
+      take: pagination.limit + 1,
+      ...(pagination.cursor && {
+        cursor: { id: pagination.cursor },
+        skip: 1,
+      }),
+      orderBy: { [sorting.field]: sorting.order },
+      include: { _count: { select: { projects: { where: { deletedAt: null } } } } },
+    })
 
-  return cursorPaginatedResponse(categories, pagination)
+    return cursorPaginatedResponse(categories, pagination)
+  })
 })
 
 export const POST = withAdmin(async (actor, request: NextRequest): Promise<NextResponse> => {
@@ -52,16 +53,10 @@ export const POST = withAdmin(async (actor, request: NextRequest): Promise<NextR
     return ApiErrors.validationError(parseZodError(validation.error))
   }
 
-  const category = await prisma.category.create({
-    data: validation.data,
-  })
-
-  await auditLog({
-    entityType: "Category",
-    entityId: category.id,
-    action: "CREATE",
-    actorId: actor.id,
-    newData: category,
+  const category = await withRLS(actor, async (db) => {
+    return db.category.create({
+      data: validation.data,
+    })
   })
 
   return successResponse(category, "Category created", HTTP_STATUS.CREATED)

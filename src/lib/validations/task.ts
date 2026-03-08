@@ -3,7 +3,7 @@ import { z } from "zod"
 export const createTaskSchema = z.object({
   objective: z.string().min(1, "Objective is required").max(255),
   details: z.string().optional(),
-  milestoneId: z.string().uuid("Invalid milestone ID").optional(),
+  ownerId: z.string().uuid("Invalid owner ID").nullable().optional(),
   priority: z.enum(["LOW", "NORMAL", "MEDIUM", "HIGH", "URGENT"]).default("NORMAL"),
   taskOrder: z.number().int("Order must be a whole number").min(1, "Order is required"),
   startDate: z.string().date("Invalid date format (YYYY-MM-DD)"),
@@ -15,7 +15,7 @@ export type CreateTaskInput = z.infer<typeof createTaskSchema>
 export const updateTaskSchema = z.object({
   objective: z.string().min(1).max(255).optional(),
   details: z.string().optional(),
-  milestoneId: z.string().uuid("Invalid milestone ID").nullable().optional(),
+  ownerId: z.string().uuid("Invalid owner ID").nullable().optional(),
   priority: z.enum(["LOW", "NORMAL", "MEDIUM", "HIGH", "URGENT"]).optional(),
   taskOrder: z.number().int("Order must be a whole number").min(1).optional(),
   state: z.enum(["ACTIVE", "ENDED"]).optional(),

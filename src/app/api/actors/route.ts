@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { withRLS } from "@/lib/prisma/rls"
 import {
   handleUnsupportedMethod,
   parseFilters,
@@ -9,7 +9,7 @@ import {
 import { withAnyAuth } from "@/lib/utils/api-route-helper"
 import type { Prisma } from "@/generated/prisma/client"
 
-export const GET = withAnyAuth(async (_actor, request: NextRequest): Promise<NextResponse> => {
+export const GET = withAnyAuth(async (actor, request: NextRequest): Promise<NextResponse> => {
   const searchParams = request.nextUrl.searchParams
   const filters = parseFilters(searchParams, ["search"])
   const excludeProjectId = searchParams.get("excludeProjectId")
@@ -33,21 +33,23 @@ export const GET = withAnyAuth(async (_actor, request: NextRequest): Promise<Nex
 
   const pagination = parseCursorPagination(searchParams)
 
-  const actors = await prisma.actor.findMany({
-    where,
-    take: pagination.limit + 1,
-    ...(pagination.cursor && {
-      cursor: { id: pagination.cursor },
-      skip: 1,
-    }),
-    orderBy: { firstName: "asc" },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-    },
-  })
+  const actors = await withRLS(actor, (db) =>
+    db.actor.findMany({
+      where,
+      take: pagination.limit + 1,
+      ...(pagination.cursor && {
+        cursor: { id: pagination.cursor },
+        skip: 1,
+      }),
+      orderBy: { firstName: "asc" },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+      },
+    })
+  )
 
   return cursorPaginatedResponse(actors, pagination)
 })

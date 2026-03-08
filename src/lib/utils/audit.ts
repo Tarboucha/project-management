@@ -1,65 +1,45 @@
-import { prisma } from "@/lib/prisma"
-import type { AuditAction, Prisma } from "@/generated/prisma/client"
-
-interface AuditEntry {
-  entityType: string
-  entityId: string
-  action: AuditAction
-  actorId: string
-  oldData?: unknown
-  newData?: unknown
-  version?: number
-}
-
-function toJson(value: unknown): Prisma.InputJsonValue {
-  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue
-}
+import { prisma } from "@/lib/prisma/client"
 
 /**
- * For UPDATE actions, computes the delta: returns only the keys in `newObj`
- * whose values differ from `oldObj`. Returns null if nothing changed.
+ * FK fields that should be resolved to human-readable names.
+ * Lookup tables resolve to `name`, actors resolve to `firstName lastName`.
  */
-function changedFields(
-  oldObj: Record<string, unknown>,
-  newObj: Record<string, unknown>,
-): Record<string, unknown> | null {
-  const diff: Record<string, unknown> = {}
-  for (const key of Object.keys(newObj)) {
-    if (JSON.stringify(oldObj[key]) !== JSON.stringify(newObj[key])) {
-      diff[key] = newObj[key]
-    }
-  }
-  return Object.keys(diff).length > 0 ? diff : null
-}
+const LOOKUP_FIELDS = ["theme_id", "category_id", "activity_id"] as const
+const ACTOR_FIELDS = ["owner_id", "responsible_id"] as const
 
 /**
- * Map of lookup FK fields to their Prisma model for resolution.
- */
-const LOOKUP_FIELDS = ["themeId", "categoryId", "activityId"] as const
-
-/**
- * Resolves lookup FK UUIDs in audit entry data to human-readable names.
- * Mutates entries in-place, adding e.g. `theme: "Name"` alongside `themeId`.
+ * Resolves FK UUIDs in audit entry data to human-readable names.
+ * Mutates entries in-place, adding e.g. `theme_id` → `theme`, `owner_id` → `owner`.
+ * Also enriches `changedFields` so UPDATE diffs display names instead of UUIDs.
  */
 export async function enrichAuditEntries(
-  entries: Array<{ oldData: unknown; newData: unknown }>,
+  entries: Array<{ oldData: unknown; newData: unknown; changedFields?: unknown }>,
 ): Promise<void> {
-  const ids = { theme: new Set<string>(), category: new Set<string>(), activity: new Set<string>() }
+  const ids = {
+    theme: new Set<string>(),
+    category: new Set<string>(),
+    activity: new Set<string>(),
+    actor: new Set<string>(),
+  }
 
   for (const entry of entries) {
-    for (const data of [entry.oldData, entry.newData]) {
+    for (const data of [entry.oldData, entry.newData, entry.changedFields]) {
       if (!data || typeof data !== "object") continue
       const d = data as Record<string, unknown>
-      if (typeof d.themeId === "string") ids.theme.add(d.themeId)
-      if (typeof d.categoryId === "string") ids.category.add(d.categoryId)
-      if (typeof d.activityId === "string") ids.activity.add(d.activityId)
+      if (typeof d.theme_id === "string") ids.theme.add(d.theme_id)
+      if (typeof d.category_id === "string") ids.category.add(d.category_id)
+      if (typeof d.activity_id === "string") ids.activity.add(d.activity_id)
+      for (const field of ACTOR_FIELDS) {
+        if (typeof d[field] === "string") ids.actor.add(d[field] as string)
+      }
     }
   }
 
-  const hasAny = ids.theme.size > 0 || ids.category.size > 0 || ids.activity.size > 0
-  if (!hasAny) return
+  const hasLookups = ids.theme.size > 0 || ids.category.size > 0 || ids.activity.size > 0
+  const hasActors = ids.actor.size > 0
+  if (!hasLookups && !hasActors) return
 
-  const [themes, categories, activities] = await Promise.all([
+  const [themes, categories, activities, actors] = await Promise.all([
     ids.theme.size > 0
       ? prisma.theme.findMany({ where: { id: { in: [...ids.theme] } }, select: { id: true, name: true } })
       : [],
@@ -69,60 +49,37 @@ export async function enrichAuditEntries(
     ids.activity.size > 0
       ? prisma.activity.findMany({ where: { id: { in: [...ids.activity] } }, select: { id: true, name: true } })
       : [],
+    ids.actor.size > 0
+      ? prisma.actor.findMany({ where: { id: { in: [...ids.actor] } }, select: { id: true, firstName: true, lastName: true } })
+      : [],
   ])
 
   const nameMap = new Map<string, string>()
   for (const row of [...themes, ...categories, ...activities]) {
     nameMap.set(row.id, row.name)
   }
+  for (const row of actors) {
+    nameMap.set(row.id, `${row.firstName} ${row.lastName}`)
+  }
 
   for (const entry of entries) {
-    for (const data of [entry.oldData, entry.newData]) {
+    for (const data of [entry.oldData, entry.newData, entry.changedFields]) {
       if (!data || typeof data !== "object") continue
       const d = data as Record<string, unknown>
       for (const field of LOOKUP_FIELDS) {
         const id = d[field]
         if (typeof id === "string" && nameMap.has(id)) {
-          // Add resolved name field (e.g. themeId → theme)
-          const nameField = field.replace(/Id$/, "")
+          const nameField = field.replace(/_id$/, "")
+          d[nameField] = nameMap.get(id)
+        }
+      }
+      for (const field of ACTOR_FIELDS) {
+        const id = d[field]
+        if (typeof id === "string" && nameMap.has(id)) {
+          const nameField = field.replace(/_id$/, "")
           d[nameField] = nameMap.get(id)
         }
       }
     }
-  }
-}
-
-export async function auditLog(entry: AuditEntry): Promise<void> {
-  try {
-    let oldData: Prisma.InputJsonValue | undefined
-    let newData: Prisma.InputJsonValue | undefined
-
-    if (entry.action === "UPDATE" && entry.oldData != null && entry.newData != null) {
-      // oldData = full snapshot, newData = only changed fields
-      const delta = changedFields(
-        entry.oldData as Record<string, unknown>,
-        entry.newData as Record<string, unknown>,
-      )
-      if (!delta) return // nothing actually changed
-      oldData = toJson(entry.oldData)
-      newData = toJson(delta)
-    } else {
-      oldData = entry.oldData != null ? toJson(entry.oldData) : undefined
-      newData = entry.newData != null ? toJson(entry.newData) : undefined
-    }
-
-    await prisma.auditLog.create({
-      data: {
-        entityType: entry.entityType,
-        entityId: entry.entityId,
-        action: entry.action,
-        actorId: entry.actorId,
-        oldData,
-        newData,
-        version: entry.version,
-      },
-    })
-  } catch (err) {
-    console.error("[audit] Failed to write audit log:", entry.entityType, entry.entityId, entry.action, err)
   }
 }

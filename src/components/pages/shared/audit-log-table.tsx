@@ -12,36 +12,36 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { ChevronDown, ChevronRight } from "lucide-react"
-
-export interface AuditEntry {
-  id: string
-  entityType: string
-  entityId: string
-  action: "CREATE" | "UPDATE" | "END" | "DELETE"
-  oldData: Record<string, unknown> | null
-  newData: Record<string, unknown> | null
-  actor: { id: string; firstName: string; lastName: string } | null
-  createdAt: string
-  version?: number | null
-}
+import type { AuditEntry } from "@/types"
 
 interface AuditLogTableProps {
   entries: AuditEntry[]
   showEntityType?: boolean
 }
 
+const ENTITY_TYPE_LABELS: Record<string, string> = {
+  program: "Program",
+  project: "Project",
+  task: "Task",
+  deliverable: "Deliverable",
+  attachment: "Attachment",
+  todo: "Todo",
+  project_member: "Project Member",
+  task_contributor: "Task Contributor",
+}
+
 const HIDDEN_FIELDS = new Set([
-  "id", "createdAt", "modifiedAt", "deletedAt", "version",
-  "createdById", "projectId", "programId", "milestoneId",
-  "taskId", "actorId", "supabaseUserId", "assignedAt",
-  "themeId", "categoryId", "activityId",
+  "id", "created_at", "modified_at", "deleted_at", "version",
+  "created_by_id", "owner_id", "project_id", "program_id",
+  "task_id", "actor_id", "assigned_at",
+  "theme_id", "category_id", "activity_id",
+  "deliverable_id", "uploaded_by_id", "responsible_id",
 ])
 
 function formatFieldName(key: string): string {
   return key
-    .replace(/([A-Z])/g, " $1")
-    .replace(/^./, (s) => s.toUpperCase())
-    .trim()
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (s) => s.toUpperCase())
 }
 
 function formatFieldValue(value: unknown): string {
@@ -81,14 +81,20 @@ const actionBadgeVariant = (action: string) => {
 
 function getEntityLabel(entry: AuditEntry): string | null {
   const data = { ...(entry.oldData ?? {}), ...(entry.newData ?? {}) }
-  switch (entry.entityType) {
-    case "Program":
-    case "Project":
+  switch (entry.tableName) {
+    case "program":
+    case "project":
       return (data.name as string) ?? null
-    case "Task":
+    case "task":
       return (data.objective as string) ?? null
-    case "ProjectMember":
-    case "TaskContributor": {
+    case "deliverable":
+      return (data.name as string) ?? null
+    case "attachment":
+      return (data.name as string) ?? null
+    case "todo":
+      return (data.action as string) ?? null
+    case "project_member":
+    case "task_contributor": {
       const role = data.role as string | undefined
       const name = data.actorName as string | undefined
       return name ? `${name}${role ? ` (${role})` : ""}` : role ?? null
@@ -102,8 +108,13 @@ function visibleFields(data: Record<string, unknown>): [string, unknown][] {
   return Object.entries(data).filter(([key]) => !HIDDEN_FIELDS.has(key))
 }
 
-function ChangedFields({ oldData, newData }: { oldData: Record<string, unknown>; newData: Record<string, unknown> }) {
-  const fields = visibleFields(newData)
+function ChangedFields({ entry }: { entry: AuditEntry }) {
+  // Use changedFields if available (new audit system), fall back to diffing newData vs oldData
+  const changedData = entry.changedFields ?? entry.newData
+  const oldData = entry.oldData ?? {}
+  if (!changedData) return <span className="text-muted-foreground">No visible changes</span>
+
+  const fields = visibleFields(changedData)
   if (fields.length === 0) return <span className="text-muted-foreground">No visible changes</span>
 
   return (
@@ -203,7 +214,7 @@ export function AuditLogTable({ entries, showEntityType = true }: AuditLogTableP
                 {showEntityType && (
                   <TableCell>
                     <div className="text-sm">
-                      <span>{entry.entityType}</span>
+                      <span>{ENTITY_TYPE_LABELS[entry.tableName] ?? entry.tableName}</span>
                       {entityLabel && (
                         <span className="block truncate max-w-[200px] text-muted-foreground" title={entityLabel}>
                           {entityLabel}
@@ -213,8 +224,8 @@ export function AuditLogTable({ entries, showEntityType = true }: AuditLogTableP
                   </TableCell>
                 )}
                 <TableCell className="max-w-[350px]">
-                  {entry.action === "UPDATE" && entry.oldData && entry.newData ? (
-                    <ChangedFields oldData={entry.oldData} newData={entry.newData} />
+                  {entry.action === "UPDATE" && (entry.changedFields || (entry.oldData && entry.newData)) ? (
+                    <ChangedFields entry={entry} />
                   ) : entry.action === "CREATE" ? (
                     <span className="text-sm text-muted-foreground">Created</span>
                   ) : entry.action === "DELETE" ? (

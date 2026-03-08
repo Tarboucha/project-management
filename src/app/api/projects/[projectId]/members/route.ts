@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { withRLS } from "@/lib/prisma/rls"
 import {
   successResponse,
   handleUnsupportedMethod,
@@ -10,24 +10,25 @@ import {
 import { withAdminOrProjectRole } from "@/lib/utils/api-route-helper"
 import { addProjectMemberSchema } from "@/lib/validations/project"
 import type { ProjectRole } from "@/generated/prisma/client"
-import { auditLog } from "@/lib/utils/audit"
 
 type Params = { projectId: string }
 
-export const GET = withAdminOrProjectRole<Params>("CONTRIBUTOR", async (_actor, _request: NextRequest, params) => {
+export const GET = withAdminOrProjectRole<Params>("CONTRIBUTOR", async (actor, _request: NextRequest, params) => {
   const { projectId } = params!
 
-  const members = await prisma.projectMember.findMany({
-    where: { projectId },
-    include: {
-      actor: {
-        select: { id: true, firstName: true, lastName: true, email: true, systemRole: true },
+  return withRLS(actor, async (db) => {
+    const members = await db.projectMember.findMany({
+      where: { projectId, deletedAt: null },
+      include: {
+        actor: {
+          select: { id: true, firstName: true, lastName: true, email: true, systemRole: true },
+        },
       },
-    },
-    orderBy: { assignedAt: "asc" },
-  })
+      orderBy: { assignedAt: "asc" },
+    })
 
-  return successResponse(members)
+    return successResponse(members)
+  })
 })
 
 export const POST = withAdminOrProjectRole<Params>("MANAGER", async (actor, request: NextRequest, params, projectRole) => {
@@ -47,36 +48,40 @@ export const POST = withAdminOrProjectRole<Params>("MANAGER", async (actor, requ
     return ApiErrors.forbidden("Managers can only add contributors")
   }
 
-  // Look up actor by email
-  const targetActor = await prisma.actor.findUnique({ where: { email } })
-  if (!targetActor || targetActor.deletedAt) {
-    return ApiErrors.notFound("User with this email")
-  }
+  const member = await withRLS(actor, async (db) => {
+    // Look up actor by email
+    const targetActor = await db.actor.findUnique({ where: { email } })
+    if (!targetActor || targetActor.deletedAt) {
+      return ApiErrors.notFound("User with this email")
+    }
 
-  const actorId = targetActor.id
+    const actorId = targetActor.id
 
-  // Check not already a member
-  const existingMember = await prisma.projectMember.findUnique({
-    where: { projectId_actorId: { projectId, actorId } },
-  })
-  if (existingMember) {
-    return ApiErrors.conflict("Actor is already a member of this project")
-  }
+    // Check not already a member
+    const existingMember = await db.projectMember.findUnique({
+      where: { projectId_actorId: { projectId, actorId } },
+    })
+    if (existingMember && !existingMember.deletedAt) {
+      return ApiErrors.conflict("Actor is already a member of this project")
+    }
 
-  const member = await prisma.projectMember.create({
-    data: {
-      projectId,
-      actorId,
-      role: role as ProjectRole,
-    },
-    include: {
-      actor: {
-        select: { id: true, firstName: true, lastName: true, email: true, systemRole: true },
+    return db.projectMember.create({
+      data: {
+        projectId,
+        actorId,
+        role: role as ProjectRole,
       },
-    },
+      include: {
+        actor: {
+          select: { id: true, firstName: true, lastName: true, email: true, systemRole: true },
+        },
+      },
+    })
   })
 
-  await auditLog({ entityType: "ProjectMember", entityId: actorId, action: "CREATE", actorId: actor.id, newData: member })
+  if (member instanceof Response) {
+    return member
+  }
 
   return successResponse(member, "Member added", HTTP_STATUS.CREATED)
 })

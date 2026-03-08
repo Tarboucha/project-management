@@ -31,9 +31,7 @@ export interface ProjectReportData {
     priority: string
     state: string
     progress: number
-    contributors: Array<{
-      actor: { firstName: string; lastName: string }
-    }>
+    owner?: { firstName: string; lastName: string } | null
   }>
 }
 
@@ -107,9 +105,7 @@ function buildTasksTable(tasks: ProjectReportData["tasks"]): Content {
       body: [
         [headerCell("Objective"), headerCell("Description"), headerCell("Priority"), headerCell("State"), headerCell("Progress"), headerCell("Task Owner"), headerCell("Ord")],
         ...tasks.map((t) => {
-          const owner = t.contributors
-            .map((c) => `${c.actor.firstName} ${c.actor.lastName}`)
-            .join(", ") || "—"
+          const owner = t.owner ? `${t.owner.firstName} ${t.owner.lastName}` : "—"
           return [
             { text: t.objective, fontSize: 9 },
             { text: t.details || "—", fontSize: 9 },

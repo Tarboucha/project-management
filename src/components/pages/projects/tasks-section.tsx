@@ -37,37 +37,12 @@ import { AuditLogDialog } from "@/components/pages/shared/audit-log-dialog"
 import { TaskFormDialog } from "@/components/pages/projects/task-form-dialog"
 import { Plus, Pencil, Trash2, Search, History, Check } from "lucide-react"
 import { toast } from "sonner"
-
-interface Task {
-  id: string
-  objective: string
-  state: "ACTIVE" | "ENDED"
-  priority: "LOW" | "NORMAL" | "MEDIUM" | "HIGH" | "URGENT"
-  progress: number
-  startDate: string
-  endDate?: string | null
-  milestoneId?: string | null
-  details?: string | null
-  budgetEstimated?: number | string | null
-  milestone?: { id: string; name: string } | null
-  contributors: Array<{
-    actor: { id: string; firstName: string; lastName: string }
-  }>
-  _count: { deliverables: number; timeEntries: number }
-}
+import type { TaskListItem as Task } from "@/types"
+import { priorityVariant } from "@/lib/utils/badges"
 
 interface TasksSectionProps {
   projectId: string
   projectRole?: "DIRECTOR" | "MANAGER" | "CONTRIBUTOR"
-}
-
-const priorityVariant = (priority: string) => {
-  switch (priority) {
-    case "URGENT": return "destructive" as const
-    case "HIGH": return "destructive" as const
-    case "MEDIUM": return "secondary" as const
-    default: return "outline" as const
-  }
 }
 
 export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
@@ -241,8 +216,7 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
                 <TableHead>Priority</TableHead>
                 <TableHead>State</TableHead>
                 <TableHead>Progress</TableHead>
-                <TableHead>Milestone</TableHead>
-                <TableHead>Contributors</TableHead>
+                <TableHead>Owner</TableHead>
                 {canManage && <TableHead className="w-24" />}
               </TableRow>
             </TableHeader>
@@ -317,20 +291,9 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
                     )}
                   </TableCell>
                   <TableCell>
-                    {task.milestone ? (
-                      <span className="text-sm">{task.milestone.name}</span>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {task.contributors.length > 0 ? (
+                    {task.owner ? (
                       <span className="text-sm">
-                        {task.contributors
-                          .slice(0, 2)
-                          .map((c) => `${c.actor.firstName} ${c.actor.lastName[0]}.`)
-                          .join(", ")}
-                        {task.contributors.length > 2 && ` +${task.contributors.length - 2}`}
+                        {task.owner.firstName} {task.owner.lastName[0]}.
                       </span>
                     ) : (
                       <span className="text-sm text-muted-foreground">—</span>
@@ -404,8 +367,8 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
       <AuditLogDialog
         open={historyOpen}
         onOpenChange={setHistoryOpen}
-        entityType="Task"
-        entityId={historyTask?.id ?? ""}
+        tableName="task"
+        recordId={historyTask?.id ?? ""}
         entityLabel={historyTask?.objective ?? "Task"}
         apiBasePath={`/api/projects/${projectId}/audit-log`}
       />

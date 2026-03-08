@@ -12,13 +12,14 @@ import {
 } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
-import { AuditLogTable, type AuditEntry } from "@/components/pages/shared/audit-log-table"
+import { AuditLogTable } from "@/components/pages/shared/audit-log-table"
+import type { AuditEntry } from "@/types"
 
 interface AuditLogDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  entityType: string
-  entityId: string
+  tableName: string
+  recordId: string
   entityLabel: string
   apiBasePath: string
 }
@@ -26,8 +27,8 @@ interface AuditLogDialogProps {
 export function AuditLogDialog({
   open,
   onOpenChange,
-  entityType,
-  entityId,
+  tableName,
+  recordId,
   entityLabel,
   apiBasePath,
 }: AuditLogDialogProps) {
@@ -35,14 +36,14 @@ export function AuditLogDialog({
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    if (!open || !entityId) return
+    if (!open || !recordId) return
     let cancelled = false
 
     const doFetch = async () => {
       setIsLoading(true)
       const params = new URLSearchParams()
-      params.set("entityType", entityType)
-      params.set("entityId", entityId)
+      params.set("tableName", tableName)
+      params.set("recordId", recordId)
       params.set("limit", "50")
 
       const res = await api.get(`${apiBasePath}?${params}`)
@@ -56,7 +57,7 @@ export function AuditLogDialog({
 
     doFetch()
     return () => { cancelled = true }
-  }, [open, entityId, entityType, apiBasePath])
+  }, [open, recordId, tableName, apiBasePath])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -64,7 +65,7 @@ export function AuditLogDialog({
         <DialogHeader>
           <DialogTitle>History: {entityLabel}</DialogTitle>
           <DialogDescription>
-            Audit trail for this {entityType.toLowerCase()}
+            Audit trail for this {tableName.replace(/_/g, " ")}
           </DialogDescription>
         </DialogHeader>
 
