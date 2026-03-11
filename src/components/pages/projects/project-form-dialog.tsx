@@ -24,6 +24,7 @@ interface ProjectFormDialogProps {
   programId?: string
   project?: {
     id: string
+    version: number
     name: string
     projectCode?: string | null
     objective?: string | null
@@ -61,6 +62,7 @@ export function ProjectFormDialog({
       objective: (formData.get("objective") as string) || undefined,
       startDate: formData.get("startDate") as string,
       endDate: (formData.get("endDate") as string) || undefined,
+      ...(isEditing && { version: project!.version }),
     }
 
     const budgetStr = formData.get("budgetEstimated") as string

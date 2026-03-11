@@ -11,6 +11,7 @@ export const createProgramSchema = z.object({
 export type CreateProgramInput = z.infer<typeof createProgramSchema>
 
 export const updateProgramSchema = z.object({
+  version: z.number().int().positive(),
   name: z.string().min(1).max(255).optional(),
   description: z.string().optional(),
   startDate: z.string().date("Invalid date format (YYYY-MM-DD)").optional(),

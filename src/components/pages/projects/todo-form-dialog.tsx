@@ -32,6 +32,7 @@ interface TodoFormDialogProps {
   members: Array<{ actorId: string; actor: ActorSummary }>
   todo?: {
     id: string
+    version: number
     action: string
     status: string
     todoOrder: number
@@ -75,6 +76,7 @@ export function TodoFormDialog({
       deliveryDate: (formData.get("deliveryDate") as string) || undefined,
       responsibleId: responsibleId === "none" ? null : responsibleId,
       comments: (formData.get("comments") as string) || undefined,
+      ...(isEditing && { version: todo!.version }),
     }
 
     const schema = isEditing ? updateTodoSchema : createTodoSchema

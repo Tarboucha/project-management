@@ -29,6 +29,7 @@ interface DeliverableFormDialogProps {
   taskId: string
   deliverable?: {
     id: string
+    version: number
     name: string
     type?: string | null
   }
@@ -63,6 +64,7 @@ export function DeliverableFormDialog({
     const data: Record<string, unknown> = {
       name: formData.get("name") as string,
       type: selectedType || undefined,
+      ...(isEditing && { version: deliverable!.version }),
     }
 
     const schema = isEditing ? updateDeliverableSchema : createDeliverableSchema

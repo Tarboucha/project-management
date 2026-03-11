@@ -28,7 +28,7 @@ export const GET = withAdmin(async (actor, request: NextRequest) => {
         cursor: { id: pagination.cursor },
         skip: 1,
       }),
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" as const }],
       include: {
         actor: {
           select: { id: true, firstName: true, lastName: true },

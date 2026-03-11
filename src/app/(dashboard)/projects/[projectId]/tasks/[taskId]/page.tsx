@@ -106,7 +106,7 @@ export default function TaskDetailPage() {
     if (!task) return
     setSavingOwner(true)
     const ownerId = actorId === "none" ? null : actorId
-    const res = await api.patch(`/api/projects/${projectId}/tasks/${taskId}`, { ownerId })
+    const res = await api.patch(`/api/projects/${projectId}/tasks/${taskId}`, { version: task.version, ownerId })
     if (res.success) {
       toast.success(ownerId ? "Owner assigned" : "Owner removed")
       refetch()
@@ -120,11 +120,12 @@ export default function TaskDetailPage() {
     if (!task || progressValue === task.progress) return
     setSavingProgress(true)
     const res = await api.patch(`/api/projects/${projectId}/tasks/${taskId}`, {
+      version: task.version,
       progress: progressValue,
     })
     if (res.success) {
       toast.success("Progress updated")
-      setTask({ ...task, progress: progressValue })
+      setTask({ ...task, version: task.version + 1, progress: progressValue })
     } else {
       toast.error("Failed to update progress")
       setProgressValue(task.progress)

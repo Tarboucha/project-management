@@ -4,6 +4,7 @@ export type TodoStatus = "ACTIVE" | "INACTIVE"
 
 export interface TodoItem {
   id: string
+  version: number
   todoOrder: number
   action: string
   status: TodoStatus

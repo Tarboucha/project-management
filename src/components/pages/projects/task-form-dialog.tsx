@@ -30,6 +30,7 @@ interface TaskFormDialogProps {
   projectId: string
   task?: {
     id: string
+    version: number
     objective: string
     details?: string | null
     priority: string
@@ -73,6 +74,7 @@ export function TaskFormDialog({
       taskOrder: orderStr ? parseInt(orderStr, 10) : undefined,
       startDate: formData.get("startDate") as string,
       endDate: (formData.get("endDate") as string) || undefined,
+      ...(isEditing && { version: task!.version }),
     }
 
     const budgetStr = formData.get("budgetEstimated") as string

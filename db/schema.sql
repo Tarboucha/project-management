@@ -2,7 +2,6 @@
 -- PostgreSQL database dump
 --
 
-\restrict MtZnW73Wph8n7ZtH5cdcOnROZkknS203iQ3wjV8bowpEO0gZlRN3sYtl9hafUhr
 
 -- Dumped from database version 16.11 (Ubuntu 16.11-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 16.11 (Ubuntu 16.11-0ubuntu0.24.04.1)
@@ -1764,5 +1763,4 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT,INSERT,
 -- PostgreSQL database dump complete
 --
 
-\unrestrict MtZnW73Wph8n7ZtH5cdcOnROZkknS203iQ3wjV8bowpEO0gZlRN3sYtl9hafUhr
 

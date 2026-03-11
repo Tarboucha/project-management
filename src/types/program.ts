@@ -2,6 +2,7 @@ import type { EntityState, ActorSummary } from "./shared"
 
 export interface Program {
   id: string
+  version: number
   name: string
   description?: string | null
   state: EntityState

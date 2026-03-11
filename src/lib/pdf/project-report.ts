@@ -33,6 +33,14 @@ export interface ProjectReportData {
     progress: number
     owner?: { firstName: string; lastName: string } | null
   }>
+  todos: Array<{
+    action: string
+    todoOrder: number
+    status: string
+    deliveryDate?: string | Date | null
+    comments?: string | null
+    responsible?: { firstName: string; lastName: string } | null
+  }>
 }
 
 // ============================================================
@@ -103,17 +111,46 @@ function buildTasksTable(tasks: ProjectReportData["tasks"]): Content {
       headerRows: 1,
       widths: ["auto", "*", "auto", "auto", "auto", "auto", "auto"],
       body: [
-        [headerCell("Objective"), headerCell("Description"), headerCell("Priority"), headerCell("State"), headerCell("Progress"), headerCell("Task Owner"), headerCell("Ord")],
+        [headerCell("Ord"), headerCell("Objective"), headerCell("Description"), headerCell("Priority"), headerCell("State"), headerCell("Progress"), headerCell("Task Owner")],
         ...tasks.map((t) => {
           const owner = t.owner ? `${t.owner.firstName} ${t.owner.lastName}` : "—"
           return [
+            { text: t.taskOrder.toString(), fontSize: 9, alignment: "center" as const },
             { text: t.objective, fontSize: 9 },
             { text: t.details || "—", fontSize: 9 },
             { text: t.priority, fontSize: 9 },
             { text: t.state, fontSize: 9 },
             { text: `${t.progress}%`, fontSize: 9, alignment: "center" as const },
             { text: owner, fontSize: 9 },
-            { text: t.taskOrder.toString(), fontSize: 9, alignment: "center" as const },
+          ]
+        }),
+      ],
+    },
+    layout: "lightHorizontalLines",
+    margin: [0, 0, 0, 10] as [number, number, number, number],
+  }
+}
+
+function buildTodosTable(todos: ProjectReportData["todos"]): Content {
+  if (todos.length === 0) {
+    return { text: "No to-dos created.", italics: true, color: "#6b7280", margin: [0, 0, 0, 10] }
+  }
+
+  return {
+    table: {
+      headerRows: 1,
+      widths: ["auto", "*", "auto", "auto", "auto", "auto"],
+      body: [
+        [headerCell("Ord"), headerCell("Action"), headerCell("Status"), headerCell("Delivery"), headerCell("Responsible"), headerCell("Comments")],
+        ...todos.map((td) => {
+          const responsible = td.responsible ? `${td.responsible.firstName} ${td.responsible.lastName}` : "—"
+          return [
+            { text: td.todoOrder.toString(), fontSize: 9, alignment: "center" as const },
+            { text: td.action, fontSize: 9 },
+            { text: td.status, fontSize: 9 },
+            { text: td.deliveryDate ? formatDate(td.deliveryDate) : "—", fontSize: 9 },
+            { text: responsible, fontSize: 9 },
+            { text: td.comments || "—", fontSize: 9 },
           ]
         }),
       ],
@@ -128,7 +165,7 @@ function buildTasksTable(tasks: ProjectReportData["tasks"]): Content {
 // ============================================================
 
 export function buildProjectReport(data: ProjectReportData): TDocumentDefinitions {
-  const { project, members, tasks } = data
+  const { project, members, tasks, todos } = data
 
   const activeTasks = tasks.filter((t) => t.state === "ACTIVE").length
   const completedTasks = tasks.filter((t) => t.state === "ENDED").length
@@ -207,6 +244,10 @@ export function buildProjectReport(data: ProjectReportData): TDocumentDefinition
       // Tasks
       { text: `Tasks (${tasks.length})`, style: "sectionHeader" },
       buildTasksTable(tasks),
+
+      // Todos
+      { text: `To-Dos (${todos.length})`, style: "sectionHeader" },
+      buildTodosTable(todos),
     ],
 
     styles: {

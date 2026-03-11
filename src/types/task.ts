@@ -2,6 +2,7 @@ import type { EntityState, TaskPriority, ActorSummary, ActorWithEmail } from "./
 
 export interface TaskListItem {
   id: string
+  version: number
   objective: string
   state: EntityState
   priority: TaskPriority
@@ -17,6 +18,7 @@ export interface TaskListItem {
 
 export interface TaskDetail {
   id: string
+  version: number
   objective: string
   details?: string | null
   state: EntityState

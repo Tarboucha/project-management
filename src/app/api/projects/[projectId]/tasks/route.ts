@@ -43,7 +43,7 @@ export const GET = withAdminOrProjectRole<Params>("CONTRIBUTOR", async (actor, r
         cursor: { id: pagination.cursor },
         skip: 1,
       }),
-      orderBy: { [sorting.field]: sorting.order },
+      orderBy: [{ [sorting.field]: sorting.order }, { id: "desc" as const }],
       include: {
         owner: { select: { id: true, firstName: true, lastName: true } },
         _count: {

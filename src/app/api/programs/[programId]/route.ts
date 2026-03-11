@@ -55,36 +55,41 @@ export const PATCH = withAdmin<Params>(async (actor, request: NextRequest, param
     return ApiErrors.validationError(parseZodError(validation.error))
   }
 
-  const program = await withRLS(actor, async (db) => {
-    const existing = await db.program.findUnique({ where: { id: programId } })
-    if (!existing || existing.deletedAt) {
-      return null
-    }
+  const { version, ...fields } = validation.data
 
+  const result = await withRLS(actor, async (db) => {
     const updateData: Record<string, unknown> = {
-      ...validation.data,
+      ...fields,
       version: { increment: 1 },
     }
 
     // Convert date strings to Date objects
-    if (validation.data.startDate) {
-      updateData.startDate = new Date(validation.data.startDate)
+    if (fields.startDate) {
+      updateData.startDate = new Date(fields.startDate)
     }
-    if (validation.data.endDate) {
-      updateData.endDate = new Date(validation.data.endDate)
+    if (fields.endDate) {
+      updateData.endDate = new Date(fields.endDate)
     }
 
-    return db.program.update({
-      where: { id: programId },
+    const { count } = await db.program.updateMany({
+      where: { id: programId, version, deletedAt: null },
       data: updateData,
     })
+
+    if (count === 0) {
+      // Distinguish between not found and version conflict
+      const existing = await db.program.findUnique({ where: { id: programId } })
+      if (!existing || existing.deletedAt) return "NOT_FOUND"
+      return "CONFLICT"
+    }
+
+    return db.program.findUnique({ where: { id: programId } })
   })
 
-  if (!program) {
-    return ApiErrors.notFound("Program")
-  }
+  if (result === "NOT_FOUND") return ApiErrors.notFound("Program")
+  if (result === "CONFLICT") return ApiErrors.conflict("Record was modified by another user. Please refresh and try again.")
 
-  return successResponse(program, "Program updated")
+  return successResponse(result, "Program updated")
 })
 
 export const DELETE = withAdmin<Params>(async (actor, _request: NextRequest, params) => {

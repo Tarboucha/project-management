@@ -18,6 +18,7 @@ export interface ProjectListItem {
 
 export interface ProjectDetail {
   id: string
+  version: number
   name: string
   objective?: string | null
   state: EntityState

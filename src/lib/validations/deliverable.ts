@@ -6,6 +6,7 @@ export const createDeliverableSchema = z.object({
 })
 
 export const updateDeliverableSchema = z.object({
+  version: z.number().int().positive(),
   name: z.string().min(1).max(255).optional(),
   type: z.string().max(100).nullable().optional(),
 })

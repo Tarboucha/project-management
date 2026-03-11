@@ -146,7 +146,7 @@ export function buildCursorPrismaArgs(params: CursorPaginationParams) {
       cursor: { id: params.cursor },
       skip: 1, // skip the cursor row itself
     }),
-    orderBy: { createdAt: "desc" as const },
+    orderBy: [{ createdAt: "desc" as const }, { id: "desc" as const }],
   }
 }
 

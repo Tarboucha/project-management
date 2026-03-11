@@ -65,6 +65,18 @@ export const GET = withAdminOrProjectRole<Params>("CONTRIBUTOR", async (actor, _
             owner: { select: { firstName: true, lastName: true } },
           },
         },
+        todos: {
+          where: { deletedAt: null },
+          orderBy: { todoOrder: "asc" },
+          select: {
+            action: true,
+            todoOrder: true,
+            status: true,
+            deliveryDate: true,
+            comments: true,
+            responsible: { select: { firstName: true, lastName: true } },
+          },
+        },
       },
     })
   )
@@ -77,6 +89,7 @@ export const GET = withAdminOrProjectRole<Params>("CONTRIBUTOR", async (actor, _
     project,
     members: project.members,
     tasks: project.tasks,
+    todos: project.todos,
   })
 
   const buffer = await generatePdfBuffer(docDefinition)

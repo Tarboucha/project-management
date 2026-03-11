@@ -2,6 +2,7 @@ import type { ActorSummary } from "./shared"
 
 export interface DeliverableListItem {
   id: string
+  version: number
   name: string
   type?: string | null
   createdAt: string

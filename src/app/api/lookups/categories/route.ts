@@ -37,7 +37,7 @@ export const GET = withAnyAuth(async (actor, request: NextRequest): Promise<Next
         cursor: { id: pagination.cursor },
         skip: 1,
       }),
-      orderBy: { [sorting.field]: sorting.order },
+      orderBy: [{ [sorting.field]: sorting.order }, { id: "desc" as const }],
       include: { _count: { select: { projects: { where: { deletedAt: null } } } } },
     })
 

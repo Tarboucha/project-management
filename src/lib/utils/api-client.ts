@@ -4,6 +4,7 @@
  */
 
 import type { ApiResponse } from "@/types/api"
+import { useAuthStore } from "@/lib/stores/auth-store"
 
 export type { ApiResponse }
 
@@ -50,6 +51,17 @@ export async function apiClient<T>(
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const response = await fetch(url, config)
+
+      // Redirect to login on 401 from non-auth API calls (expired/invalid token)
+      if (
+        response.status === 401 &&
+        typeof window !== "undefined" &&
+        !url.startsWith("/api/auth/")
+      ) {
+        useAuthStore.getState().clearActor()
+        window.location.href = "/login"
+        return { success: false, error: { code: "AUTH_REQUIRED", message: "Session expired" } }
+      }
 
       // Don't retry client errors (except retryable ones)
       if (!response.ok && !isRetryable(response.status)) {

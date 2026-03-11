@@ -52,7 +52,7 @@ export const GET = withAnyAuth<Params>(async (actor, request: NextRequest, param
         cursor: { id: pagination.cursor },
         skip: 1,
       }),
-      orderBy: { [sorting.field]: sorting.order },
+      orderBy: [{ [sorting.field]: sorting.order }, { id: "desc" as const }],
       include: {
         _count: {
           select: {

@@ -124,14 +124,17 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
   }
 
   const handleProgressSave = async (taskId: string) => {
+    const task = tasks.find((t) => t.id === taskId)
+    if (!task) return
     setSavingProgress(true)
     const res = await api.patch(`/api/projects/${projectId}/tasks/${taskId}`, {
+      version: task.version,
       progress: progressValue,
     })
     if (res.success) {
       toast.success("Progress updated")
       setTasks((prev) =>
-        prev.map((t) => (t.id === taskId ? { ...t, progress: progressValue } : t))
+        prev.map((t) => (t.id === taskId ? { ...t, version: t.version + 1, progress: progressValue } : t))
       )
       setProgressTaskId(null)
     } else {

@@ -22,6 +22,7 @@ interface ProgramFormDialogProps {
   onSuccess: () => void
   program?: {
     id: string
+    version: number
     name: string
     description?: string | null
     startDate: string
@@ -52,6 +53,7 @@ export function ProgramFormDialog({
       startDate: formData.get("startDate") as string,
       endDate: (formData.get("endDate") as string) || undefined,
       currency: (formData.get("currency") as string) || "EUR",
+      ...(isEditing && { version: program!.version }),
     }
 
     const budgetStr = formData.get("budgetEstimated") as string

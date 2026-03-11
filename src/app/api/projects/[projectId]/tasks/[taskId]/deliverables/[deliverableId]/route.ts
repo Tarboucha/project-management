@@ -57,32 +57,39 @@ export const PATCH = withAdminOrProjectRole<Params>("CONTRIBUTOR", async (actor,
     return ApiErrors.validationError(parseZodError(validation.error))
   }
 
-  return withRLS(actor, async (db) => {
-    const existing = await db.deliverable.findUnique({ where: { id: deliverableId } })
-    if (!existing || existing.deletedAt || existing.taskId !== taskId) {
-      return ApiErrors.notFound("Deliverable")
-    }
+  const { version, ...fields } = validation.data
 
+  return withRLS(actor, async (db) => {
     const task = await db.task.findUnique({ where: { id: taskId } })
     if (!task || task.deletedAt || task.projectId !== projectId) {
       return ApiErrors.notFound("Task")
     }
 
     // Check permission: MANAGER+ or deliverable creator
+    const existing = await db.deliverable.findUnique({ where: { id: deliverableId } })
+    if (!existing || existing.deletedAt || existing.taskId !== taskId) {
+      return ApiErrors.notFound("Deliverable")
+    }
+
     if (actor.systemRole !== "ADMIN" && projectRole !== "DIRECTOR" && projectRole !== "MANAGER") {
       if (existing.createdById !== actor.id) {
         return ApiErrors.forbidden("Requires MANAGER role or deliverable ownership")
       }
     }
 
-    const deliverable = await db.deliverable.update({
-      where: { id: deliverableId },
+    const { count } = await db.deliverable.updateMany({
+      where: { id: deliverableId, version, deletedAt: null },
       data: {
-        ...validation.data,
+        ...fields,
         version: { increment: 1 },
       },
     })
 
+    if (count === 0) {
+      return ApiErrors.conflict("Record was modified by another user. Please refresh and try again.")
+    }
+
+    const deliverable = await db.deliverable.findUnique({ where: { id: deliverableId } })
     return successResponse(deliverable, "Deliverable updated")
   })
 })

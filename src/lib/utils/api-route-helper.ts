@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { verifyToken } from "@/lib/auth/jwt"
 import { getTokenFromRequest } from "@/lib/auth/session"
 import { prisma } from "@/lib/prisma/client"
+import { withRLS } from "@/lib/prisma/rls"
 import { ApiErrors } from "@/lib/utils/api-response"
 import type { Actor, ProjectRole } from "@/generated/prisma/client"
 import type { AuthenticatedHandler, WithAuthOptions, ProjectRoleHandler } from "@/types/handlers"
@@ -137,11 +138,13 @@ export function withProjectRole<TParams extends { projectId: string } = { projec
         return ApiErrors.validationError("Project ID is required")
       }
 
-      const membership = await prisma.projectMember.findUnique({
-        where: {
-          projectId_actorId: { projectId, actorId: actor.id },
-        },
-      })
+      const membership = await withRLS(actor, (db) =>
+        db.projectMember.findUnique({
+          where: {
+            projectId_actorId: { projectId, actorId: actor.id },
+          },
+        })
+      )
 
       if (!membership || membership.deletedAt || !hasMinProjectRole(membership.role, minRole)) {
         return ApiErrors.forbidden(
@@ -197,11 +200,13 @@ export function withAdminOrProjectRole<TParams extends { projectId: string } = {
       // ADMINs bypass project role checks
       let projectRole: ProjectRole | undefined
       if (actor.systemRole !== "ADMIN") {
-        const membership = await prisma.projectMember.findUnique({
-          where: {
-            projectId_actorId: { projectId, actorId: actor.id },
-          },
-        })
+        const membership = await withRLS(actor, (db) =>
+          db.projectMember.findUnique({
+            where: {
+              projectId_actorId: { projectId, actorId: actor.id },
+            },
+          })
+        )
 
         if (!membership || membership.deletedAt || !hasMinProjectRole(membership.role, minRole)) {
           return ApiErrors.forbidden(

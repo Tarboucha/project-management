@@ -54,33 +54,37 @@ export const PATCH = withAdminOrProjectRole<Params>("MANAGER", async (actor, req
     return ApiErrors.validationError(parseZodError(validation.error))
   }
 
-  const result = await withRLS(actor, async (db) => {
-    const existing = await db.project.findUnique({ where: { id: projectId } })
-    if (!existing || existing.deletedAt) {
-      return ApiErrors.notFound("Project")
-    }
+  const { version, ...fields } = validation.data
 
+  const result = await withRLS(actor, async (db) => {
     const updateData: Record<string, unknown> = {
-      ...validation.data,
+      ...fields,
       version: { increment: 1 },
     }
 
-    if (validation.data.startDate) {
-      updateData.startDate = new Date(validation.data.startDate)
+    if (fields.startDate) {
+      updateData.startDate = new Date(fields.startDate)
     }
-    if (validation.data.endDate) {
-      updateData.endDate = new Date(validation.data.endDate)
+    if (fields.endDate) {
+      updateData.endDate = new Date(fields.endDate)
     }
 
-    return db.project.update({
-      where: { id: projectId },
+    const { count } = await db.project.updateMany({
+      where: { id: projectId, version, deletedAt: null },
       data: updateData,
     })
+
+    if (count === 0) {
+      const existing = await db.project.findUnique({ where: { id: projectId } })
+      if (!existing || existing.deletedAt) return "NOT_FOUND"
+      return "CONFLICT"
+    }
+
+    return db.project.findUnique({ where: { id: projectId } })
   })
 
-  if (result instanceof Response) {
-    return result
-  }
+  if (result === "NOT_FOUND") return ApiErrors.notFound("Project")
+  if (result === "CONFLICT") return ApiErrors.conflict("Record was modified by another user. Please refresh and try again.")
 
   return successResponse(result, "Project updated")
 })

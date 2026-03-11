@@ -84,11 +84,12 @@ export default function ProjectDetailPage() {
     if (!project || progressValue === project.progress) return
     setSavingProgress(true)
     const res = await api.patch(`/api/projects/${projectId}`, {
+      version: project.version,
       progress: progressValue,
     })
     if (res.success) {
       toast.success("Progress updated")
-      setProject({ ...project, progress: progressValue })
+      setProject({ ...project, version: project.version + 1, progress: progressValue })
     } else {
       toast.error("Failed to update progress")
       setProgressValue(project.progress)

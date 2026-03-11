@@ -41,7 +41,7 @@ export const GET = withAnyAuth(async (actor, request: NextRequest): Promise<Next
         cursor: { id: pagination.cursor },
         skip: 1,
       }),
-      orderBy: { firstName: "asc" },
+      orderBy: [{ firstName: "asc" }, { id: "desc" as const }],
       select: {
         id: true,
         firstName: true,

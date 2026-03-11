@@ -55,7 +55,7 @@ export const GET = withAnyAuth(async (actor, request: NextRequest) => {
         cursor: { id: pagination.cursor },
         skip: 1,
       }),
-      orderBy,
+      orderBy: [orderBy, { id: "desc" as const }],
       include: {
         program: { select: { id: true, name: true } },
         activity: { select: { id: true, name: true } },

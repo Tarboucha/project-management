@@ -46,43 +46,48 @@ export const PATCH = withAdminOrProjectRole<Params>("MANAGER", async (actor, req
     return ApiErrors.validationError(parseZodError(validation.error))
   }
 
+  const { version, ...fields } = validation.data
+
   const updateData: Record<string, unknown> = {
-    ...validation.data,
+    ...fields,
     version: { increment: 1 },
   }
 
-  if (validation.data.startDate) {
-    updateData.startDate = new Date(validation.data.startDate)
+  if (fields.startDate) {
+    updateData.startDate = new Date(fields.startDate)
   }
-  if (validation.data.endDate) {
-    updateData.endDate = new Date(validation.data.endDate)
+  if (fields.endDate) {
+    updateData.endDate = new Date(fields.endDate)
   }
 
   const result = await withRLS(actor, async (db) => {
-    const existing = await db.task.findUnique({ where: { id: taskId } })
-    if (!existing || existing.deletedAt || existing.projectId !== projectId) {
-      return ApiErrors.notFound("Task")
-    }
-
     // Verify taskOrder is unique within the project (among non-deleted tasks, excluding self)
-    if (validation.data.taskOrder !== undefined) {
+    if (fields.taskOrder !== undefined) {
       const existingOrder = await db.task.findFirst({
-        where: { projectId, taskOrder: validation.data.taskOrder, deletedAt: null, id: { not: taskId } },
+        where: { projectId, taskOrder: fields.taskOrder, deletedAt: null, id: { not: taskId } },
       })
       if (existingOrder) {
-        return ApiErrors.conflict(`A task with order ${validation.data.taskOrder} already exists in this project`)
+        return ApiErrors.conflict(`A task with order ${fields.taskOrder} already exists in this project`)
       }
     }
 
-    return db.task.update({
-      where: { id: taskId },
+    const { count } = await db.task.updateMany({
+      where: { id: taskId, version, projectId, deletedAt: null },
       data: updateData,
     })
+
+    if (count === 0) {
+      const existing = await db.task.findUnique({ where: { id: taskId } })
+      if (!existing || existing.deletedAt || existing.projectId !== projectId) return "NOT_FOUND"
+      return "CONFLICT"
+    }
+
+    return db.task.findUnique({ where: { id: taskId } })
   })
 
-  if (result instanceof Response) {
-    return result
-  }
+  if (result === "NOT_FOUND") return ApiErrors.notFound("Task")
+  if (result === "CONFLICT") return ApiErrors.conflict("Record was modified by another user. Please refresh and try again.")
+  if (result instanceof Response) return result
 
   return successResponse(result, "Task updated")
 })

@@ -13,6 +13,7 @@ export const createTodoSchema = z.object({
 export type CreateTodoInput = z.infer<typeof createTodoSchema>
 
 export const updateTodoSchema = z.object({
+  version: z.number().int().positive(),
   action: z.string().min(1).optional(),
   todoOrder: z.number().int().min(0).optional(),
   status: todoStatusEnum.optional(),

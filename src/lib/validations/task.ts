@@ -13,6 +13,7 @@ export const createTaskSchema = z.object({
 export type CreateTaskInput = z.infer<typeof createTaskSchema>
 
 export const updateTaskSchema = z.object({
+  version: z.number().int().positive(),
   objective: z.string().min(1).max(255).optional(),
   details: z.string().optional(),
   ownerId: z.string().uuid("Invalid owner ID").nullable().optional(),

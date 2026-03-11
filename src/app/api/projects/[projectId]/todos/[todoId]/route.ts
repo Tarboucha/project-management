@@ -41,17 +41,14 @@ export const PATCH = withAdminOrProjectRole<Params>("MANAGER", async (actor, req
     return ApiErrors.validationError(parseZodError(validation.error))
   }
 
-  return withRLS(actor, async (db) => {
-    const existing = await db.todo.findUnique({ where: { id: todoId } })
-    if (!existing || existing.deletedAt || existing.projectId !== projectId) {
-      return ApiErrors.notFound("Todo")
-    }
+  const { version, deliveryDate, ...fields } = validation.data
 
+  return withRLS(actor, async (db) => {
     // Validate responsible is a project member
-    if (validation.data.responsibleId) {
+    if (fields.responsibleId) {
       const member = await db.projectMember.findUnique({
         where: {
-          projectId_actorId: { projectId, actorId: validation.data.responsibleId },
+          projectId_actorId: { projectId, actorId: fields.responsibleId },
         },
       })
       if (!member || member.deletedAt) {
@@ -59,14 +56,27 @@ export const PATCH = withAdminOrProjectRole<Params>("MANAGER", async (actor, req
       }
     }
 
-    const { deliveryDate, ...rest } = validation.data
-    const todo = await db.todo.update({
+    const updateData: Record<string, unknown> = {
+      ...fields,
+      ...(deliveryDate !== undefined && { deliveryDate: deliveryDate ? new Date(deliveryDate) : null }),
+      version: { increment: 1 },
+    }
+
+    const { count } = await db.todo.updateMany({
+      where: { id: todoId, version, projectId, deletedAt: null },
+      data: updateData,
+    })
+
+    if (count === 0) {
+      const existing = await db.todo.findUnique({ where: { id: todoId } })
+      if (!existing || existing.deletedAt || existing.projectId !== projectId) {
+        return ApiErrors.notFound("Todo")
+      }
+      return ApiErrors.conflict("Record was modified by another user. Please refresh and try again.")
+    }
+
+    const todo = await db.todo.findUnique({
       where: { id: todoId },
-      data: {
-        ...rest,
-        ...(deliveryDate !== undefined && { deliveryDate: deliveryDate ? new Date(deliveryDate) : null }),
-        version: { increment: 1 },
-      },
       include: {
         responsible: { select: { id: true, firstName: true, lastName: true } },
         createdBy: { select: { id: true, firstName: true, lastName: true } },
