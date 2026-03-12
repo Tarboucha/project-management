@@ -62,6 +62,8 @@ export const GET = withAdminOrProjectRole<Params>("CONTRIBUTOR", async (actor, _
             priority: true,
             state: true,
             progress: true,
+            startDate: true,
+            endDate: true,
             owner: { select: { firstName: true, lastName: true } },
           },
         },

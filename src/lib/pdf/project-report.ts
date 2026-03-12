@@ -31,6 +31,8 @@ export interface ProjectReportData {
     priority: string
     state: string
     progress: number
+    startDate: string | Date
+    endDate?: string | Date | null
     owner?: { firstName: string; lastName: string } | null
   }>
   todos: Array<{
@@ -75,7 +77,7 @@ function findMemberByRole(members: ProjectReportData["members"], role: string): 
 const TABLE_HEADER_FILL = "#f3f4f6"
 
 function headerCell(text: string): TableCell {
-  return { text, bold: true, fillColor: TABLE_HEADER_FILL, fontSize: 9 }
+  return { text, bold: true, fillColor: TABLE_HEADER_FILL, fontSize: 10}
 }
 
 function buildMembersTable(members: ProjectReportData["members"]): Content {
@@ -90,9 +92,9 @@ function buildMembersTable(members: ProjectReportData["members"]): Content {
       body: [
         [headerCell("Name"), headerCell("Email"), headerCell("Role")],
         ...members.map((m) => [
-          { text: `${m.actor.firstName} ${m.actor.lastName}`, fontSize: 9 },
-          { text: m.actor.email, fontSize: 9 },
-          { text: m.role, fontSize: 9 },
+          { text: `${m.actor.firstName} ${m.actor.lastName}`, fontSize: 10 },
+          { text: m.actor.email, fontSize: 10 },
+          { text: m.role, fontSize: 10 },
         ]),
       ],
     },
@@ -109,19 +111,21 @@ function buildTasksTable(tasks: ProjectReportData["tasks"]): Content {
   return {
     table: {
       headerRows: 1,
-      widths: ["auto", "*", "auto", "auto", "auto", "auto", "auto"],
+      widths: ["auto", "*", "auto", "auto", "auto", "auto", "auto", "auto", "auto"],
       body: [
-        [headerCell("Ord"), headerCell("Objective"), headerCell("Description"), headerCell("Priority"), headerCell("State"), headerCell("Progress"), headerCell("Task Owner")],
+        [headerCell("Ord"), headerCell("Objective"), headerCell("Details"), headerCell("Priority"), headerCell("State"), headerCell("Progress"), headerCell("Start"), headerCell("End"), headerCell("Owner")],
         ...tasks.map((t) => {
           const owner = t.owner ? `${t.owner.firstName} ${t.owner.lastName}` : "—"
           return [
-            { text: t.taskOrder.toString(), fontSize: 9, alignment: "center" as const },
-            { text: t.objective, fontSize: 9 },
-            { text: t.details || "—", fontSize: 9 },
-            { text: t.priority, fontSize: 9 },
-            { text: t.state, fontSize: 9 },
-            { text: `${t.progress}%`, fontSize: 9, alignment: "center" as const },
-            { text: owner, fontSize: 9 },
+            { text: t.taskOrder.toString(), fontSize: 10, alignment: "center" as const },
+            { text: t.objective, fontSize: 10 },
+            { text: t.details || "—", fontSize: 10 },
+            { text: t.priority, fontSize: 10 },
+            { text: t.state, fontSize: 10 },
+            { text: `${t.progress}%`, fontSize: 10, alignment: "center" as const },
+            { text: formatDate(t.startDate), fontSize: 10 },
+            { text: t.endDate ? formatDate(t.endDate) : "—", fontSize: 10 },
+            { text: owner, fontSize: 10 },
           ]
         }),
       ],
@@ -139,18 +143,18 @@ function buildTodosTable(todos: ProjectReportData["todos"]): Content {
   return {
     table: {
       headerRows: 1,
-      widths: ["auto", "*", "auto", "auto", "auto", "auto"],
+      widths: ["auto", "*", "*", "auto", "auto", "auto"],
       body: [
-        [headerCell("Ord"), headerCell("Action"), headerCell("Status"), headerCell("Delivery"), headerCell("Responsible"), headerCell("Comments")],
+        [headerCell("Ord"), headerCell("Action"), headerCell("Comments"), headerCell("Status"), headerCell("Delivery"), headerCell("Responsible")],
         ...todos.map((td) => {
           const responsible = td.responsible ? `${td.responsible.firstName} ${td.responsible.lastName}` : "—"
           return [
-            { text: td.todoOrder.toString(), fontSize: 9, alignment: "center" as const },
-            { text: td.action, fontSize: 9 },
-            { text: td.status, fontSize: 9 },
-            { text: td.deliveryDate ? formatDate(td.deliveryDate) : "—", fontSize: 9 },
-            { text: responsible, fontSize: 9 },
-            { text: td.comments || "—", fontSize: 9 },
+            { text: td.todoOrder.toString(), fontSize: 10, alignment: "center" as const },
+            { text: td.action, fontSize: 10 },
+            { text: td.comments || "—", fontSize: 10 },
+            { text: td.status, fontSize: 10 },
+            { text: td.deliveryDate ? formatDate(td.deliveryDate) : "—", fontSize: 10 },
+            { text: responsible, fontSize: 10 },
           ]
         }),
       ],
@@ -175,19 +179,20 @@ export function buildProjectReport(data: ProjectReportData): TDocumentDefinition
 
   return {
     pageSize: "A4",
+    pageOrientation: "landscape",
     pageMargins: [40, 60, 40, 50],
 
     header: {
       columns: [
         { text: "PROJECT SUMMARY REPORT", style: "headerText", margin: [40, 20, 0, 0] },
-        { text: formatDate(new Date()), alignment: "right", fontSize: 8, color: "#6b7280", margin: [0, 22, 40, 0] },
+        { text: formatDate(new Date()), alignment: "right", fontSize: 10, color: "#6b7280", margin: [0, 22, 40, 0] },
       ],
     },
 
     footer: (currentPage: number, pageCount: number) => ({
       text: `Page ${currentPage} of ${pageCount}`,
       alignment: "center" as const,
-      fontSize: 8,
+      fontSize: 10,
       color: "#9ca3af",
       margin: [0, 15, 0, 0] as [number, number, number, number],
     }),
@@ -235,7 +240,7 @@ export function buildProjectReport(data: ProjectReportData): TDocumentDefinition
       },
 
       // Separator
-      { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: "#d1d5db" }], margin: [0, 0, 0, 15] as [number, number, number, number] },
+      { canvas: [{ type: "line", x1: 0, y1: 0, x2: 762, y2: 0, lineWidth: 0.5, lineColor: "#d1d5db" }], margin: [0, 0, 0, 15] as [number, number, number, number] },
 
       // Team Members
       { text: `Team Members (${members.length})`, style: "sectionHeader" },
@@ -251,7 +256,7 @@ export function buildProjectReport(data: ProjectReportData): TDocumentDefinition
     ],
 
     styles: {
-      headerText: { fontSize: 8, bold: true, color: "#6b7280" },
+      headerText: { fontSize: 10, bold: true, color: "#6b7280" },
       title: { fontSize: 20, bold: true, margin: [0, 0, 0, 8] },
       sectionHeader: { fontSize: 13, bold: true, margin: [0, 10, 0, 6] },
     },

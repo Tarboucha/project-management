@@ -87,6 +87,8 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
       if (stateFilter !== "all") params.set("state", stateFilter)
       if (priorityFilter !== "all") params.set("priority", priorityFilter)
       params.set("limit", "50")
+      params.set("sortBy", "taskOrder")
+      params.set("sortOrder", "asc")
 
       const res = await api.get<Task[]>(
         `/api/projects/${projectId}/tasks?${params.toString()}`
@@ -215,6 +217,7 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">Ord</TableHead>
                 <TableHead>Objective</TableHead>
                 <TableHead>Priority</TableHead>
                 <TableHead>State</TableHead>
@@ -226,6 +229,7 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
             <TableBody>
               {tasks.map((task) => (
                 <TableRow key={task.id}>
+                  <TableCell className="text-muted-foreground">{task.taskOrder}</TableCell>
                   <TableCell className="font-medium max-w-[250px]">
                     <Link
                       href={`/projects/${projectId}/tasks/${task.id}`}

@@ -112,7 +112,7 @@ export function TodosSection({ projectId, canManage, members }: TodosSectionProp
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[60px]">#</TableHead>
+                <TableHead className="w-[60px]">Ord</TableHead>
                 <TableHead>Action</TableHead>
                 <TableHead className="w-[100px]">Status</TableHead>
                 <TableHead className="w-[120px]">Delivery</TableHead>

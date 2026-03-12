@@ -47,6 +47,9 @@ export const GET = withAnyAuth(async (actor, request: NextRequest): Promise<Next
         firstName: true,
         lastName: true,
         email: true,
+        systemRole: true,
+        isActive: true,
+        createdAt: true,
       },
     })
   )

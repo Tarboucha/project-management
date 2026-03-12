@@ -223,7 +223,7 @@ export function AuditLogTable({ entries, showEntityType = true }: AuditLogTableP
                     </div>
                   </TableCell>
                 )}
-                <TableCell className="max-w-[350px]">
+                <TableCell className="max-w-[350px] whitespace-normal wrap-break-word">
                   {entry.action === "UPDATE" && (entry.changedFields || (entry.oldData && entry.newData)) ? (
                     <ChangedFields entry={entry} />
                   ) : entry.action === "CREATE" ? (

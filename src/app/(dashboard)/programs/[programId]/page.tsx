@@ -127,7 +127,7 @@ export default function ProgramDetailPage() {
                 <ArrowLeft className="h-4 w-4" />
               </Link>
             </Button>
-            <h1 className="text-2xl font-semibold tracking-tight">{program.name}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Program: {program.name}</h1>
             <StateBadge state={program.state} />
           </div>
           {program.description && (

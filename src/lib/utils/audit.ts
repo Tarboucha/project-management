@@ -4,8 +4,8 @@ import { prisma } from "@/lib/prisma/client"
  * FK fields that should be resolved to human-readable names.
  * Lookup tables resolve to `name`, actors resolve to `firstName lastName`.
  */
-const LOOKUP_FIELDS = ["theme_id", "category_id", "activity_id"] as const
-const ACTOR_FIELDS = ["owner_id", "responsible_id"] as const
+const LOOKUP_FIELDS = ["theme_id", "category_id", "activity_id", "deliverable_id"] as const
+const ACTOR_FIELDS = ["owner_id", "responsible_id", "uploaded_by_id"] as const
 
 /**
  * Resolves FK UUIDs in audit entry data to human-readable names.
@@ -19,6 +19,7 @@ export async function enrichAuditEntries(
     theme: new Set<string>(),
     category: new Set<string>(),
     activity: new Set<string>(),
+    deliverable: new Set<string>(),
     actor: new Set<string>(),
   }
 
@@ -29,17 +30,18 @@ export async function enrichAuditEntries(
       if (typeof d.theme_id === "string") ids.theme.add(d.theme_id)
       if (typeof d.category_id === "string") ids.category.add(d.category_id)
       if (typeof d.activity_id === "string") ids.activity.add(d.activity_id)
+      if (typeof d.deliverable_id === "string") ids.deliverable.add(d.deliverable_id)
       for (const field of ACTOR_FIELDS) {
         if (typeof d[field] === "string") ids.actor.add(d[field] as string)
       }
     }
   }
 
-  const hasLookups = ids.theme.size > 0 || ids.category.size > 0 || ids.activity.size > 0
+  const hasLookups = ids.theme.size > 0 || ids.category.size > 0 || ids.activity.size > 0 || ids.deliverable.size > 0
   const hasActors = ids.actor.size > 0
   if (!hasLookups && !hasActors) return
 
-  const [themes, categories, activities, actors] = await Promise.all([
+  const [themes, categories, activities, deliverables, actors] = await Promise.all([
     ids.theme.size > 0
       ? prisma.theme.findMany({ where: { id: { in: [...ids.theme] } }, select: { id: true, name: true } })
       : [],
@@ -49,13 +51,16 @@ export async function enrichAuditEntries(
     ids.activity.size > 0
       ? prisma.activity.findMany({ where: { id: { in: [...ids.activity] } }, select: { id: true, name: true } })
       : [],
+    ids.deliverable.size > 0
+      ? prisma.deliverable.findMany({ where: { id: { in: [...ids.deliverable] } }, select: { id: true, name: true } })
+      : [],
     ids.actor.size > 0
       ? prisma.actor.findMany({ where: { id: { in: [...ids.actor] } }, select: { id: true, firstName: true, lastName: true } })
       : [],
   ])
 
   const nameMap = new Map<string, string>()
-  for (const row of [...themes, ...categories, ...activities]) {
+  for (const row of [...themes, ...categories, ...activities, ...deliverables]) {
     nameMap.set(row.id, row.name)
   }
   for (const row of actors) {
