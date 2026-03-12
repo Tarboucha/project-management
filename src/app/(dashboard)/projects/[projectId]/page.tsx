@@ -132,7 +132,7 @@ export default function ProjectDetailPage() {
                 <ArrowLeft className="h-4 w-4" />
               </Link>
             </Button>
-            <h1 className="text-2xl font-semibold tracking-tight">Project: {project.name}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight"><span className="text-emerald-600">Project:</span> {project.name}</h1>
             <StateBadge state={project.state} />
           </div>
           <div className="ml-10 flex items-center gap-2 text-sm text-muted-foreground">

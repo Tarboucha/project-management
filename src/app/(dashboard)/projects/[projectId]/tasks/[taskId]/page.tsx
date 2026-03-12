@@ -162,7 +162,7 @@ export default function TaskDetailPage() {
                 <ArrowLeft className="h-4 w-4" />
               </Link>
             </Button>
-            <h1 className="text-2xl font-semibold tracking-tight">Task: {task.objective}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight"><span className="text-blue-600">Task:</span> {task.objective}</h1>
             <StateBadge state={task.state} />
             <Badge variant={priorityVariant(task.priority)}>{task.priority}</Badge>
           </div>
