@@ -11,6 +11,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { LookupSelectField } from "@/components/shared/lookup-select-field"
 import { createProjectSchema, updateProjectSchema } from "@/lib/validations/project"
 import { api } from "@/lib/utils/api-client"
@@ -34,6 +41,7 @@ interface ProjectFormDialogProps {
     activityId?: string | null
     themeId?: string | null
     categoryId?: string | null
+    state?: string
   }
 }
 
@@ -49,6 +57,7 @@ export function ProjectFormDialog({
   const [selectedActivity, setSelectedActivity] = useState(project?.activityId ?? "none")
   const [selectedTheme, setSelectedTheme] = useState(project?.themeId ?? "none")
   const [selectedCategory, setSelectedCategory] = useState(project?.categoryId ?? "none")
+  const [selectedState, setSelectedState] = useState(project?.state ?? "ACTIVE")
   const isEditing = !!project
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -62,7 +71,7 @@ export function ProjectFormDialog({
       objective: (formData.get("objective") as string) || undefined,
       startDate: formData.get("startDate") as string,
       endDate: (formData.get("endDate") as string) || undefined,
-      ...(isEditing && { version: project!.version }),
+      ...(isEditing && { version: project!.version, state: selectedState }),
     }
 
     const budgetStr = formData.get("budgetEstimated") as string
@@ -161,7 +170,30 @@ export function ProjectFormDialog({
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          {isEditing && (
+            <div className="grid gap-2">
+              <Label>State</Label>
+              <Select value={selectedState} onValueChange={setSelectedState}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="ENDED">Ended</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="grid gap-4">
+            <LookupSelectField
+              label="Category"
+              apiPath="/api/lookups/categories"
+              value={selectedCategory}
+              onChange={setSelectedCategory}
+              parentOpen={open}
+              disabled={isLoading}
+            />
             <LookupSelectField
               label="Activity"
               apiPath="/api/lookups/activities"
@@ -178,14 +210,6 @@ export function ProjectFormDialog({
               parentOpen={open}
               disabled={isLoading}
             />
-            <LookupSelectField
-              label="Category"
-              apiPath="/api/lookups/categories"
-              value={selectedCategory}
-              onChange={setSelectedCategory}
-              parentOpen={open}
-              disabled={isLoading}
-            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -193,7 +217,7 @@ export function ProjectFormDialog({
               <Label>Start Date *</Label>
               <DatePicker
                 name="startDate"
-                defaultValue={project?.startDate?.slice(0, 10)}
+                defaultValue={project?.startDate?.slice(0, 10) ?? new Date().toISOString().slice(0, 10)}
                 required
                 disabled={isLoading}
               />

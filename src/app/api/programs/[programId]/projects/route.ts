@@ -23,7 +23,7 @@ export const GET = withAnyAuth<Params>(async (actor, request: NextRequest, param
   const searchParams = request.nextUrl.searchParams
   const pagination = parseCursorPagination(searchParams)
   const filters = parseFilters(searchParams, ["state", "search"])
-  const sorting = parseSorting(searchParams, ["name", "createdAt", "startDate", "progress"])
+  const sorting = parseSorting(searchParams, ["name", "projectCode", "createdAt", "startDate", "progress", "state"], "projectCode", "asc")
 
   return withRLS(actor, async (db) => {
     // Verify program exists

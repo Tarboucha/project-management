@@ -116,9 +116,9 @@ export default function ProjectDetailPage() {
   if (!project) return null
 
   const tags = [
-    project.theme && { label: "Theme", value: project.theme.name },
     project.category && { label: "Category", value: project.category.name },
     project.activity && { label: "Activity", value: project.activity.name },
+    project.theme && { label: "Theme", value: project.theme.name },
   ].filter(Boolean) as Array<{ label: string; value: string }>
 
   return (

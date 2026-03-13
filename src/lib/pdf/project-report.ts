@@ -215,9 +215,9 @@ export function buildProjectReport(data: ProjectReportData): TDocumentDefinition
         : []),
       {
         columns: [
+          { text: [{ text: "Category: ", bold: true }, project.category?.name ?? "—"], fontSize: 10 },
           { text: [{ text: "Activity: ", bold: true }, project.activity?.name ?? "—"], fontSize: 10 },
           { text: [{ text: "Theme: ", bold: true }, project.theme?.name ?? "—"], fontSize: 10 },
-          { text: [{ text: "Category: ", bold: true }, project.category?.name ?? "—"], fontSize: 10 },
         ],
         margin: [0, 0, 0, 5] as [number, number, number, number],
       },

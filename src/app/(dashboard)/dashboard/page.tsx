@@ -87,7 +87,7 @@ export default function DashboardPage() {
 
       const [programsRes, projectsRes, tasksRes, todosRes] = await Promise.all([
         api.get<DashboardProject[]>("/api/programs?limit=1&state=ACTIVE"),
-        api.get<DashboardProject[]>("/api/projects?limit=10&state=ACTIVE&sortBy=name&sortOrder=asc"),
+        api.get<DashboardProject[]>("/api/projects?limit=10&state=ACTIVE&sortBy=projectCode&sortOrder=asc"),
         api.get<DashboardTask[]>("/api/tasks?limit=10&owner=me&state=ACTIVE"),
         api.get<DashboardTodo[]>("/api/todos?limit=10&responsible=me&status=ACTIVE"),
       ])

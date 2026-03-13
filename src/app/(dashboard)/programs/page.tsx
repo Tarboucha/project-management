@@ -26,7 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { StateBadge } from "@/components/pages/shared/state-badge"
 import { DeleteConfirmDialog } from "@/components/pages/shared/delete-confirm-dialog"
 import { ProgramFormDialog } from "@/components/pages/programs/program-form-dialog"
-import { Plus, Search, FolderKanban } from "lucide-react"
+import { Plus, Search, FolderKanban, ArrowUp, ArrowDown } from "lucide-react"
 import { toast } from "sonner"
 import type { Program } from "@/types"
 import { formatDate } from "@/lib/utils/format"
@@ -43,8 +43,8 @@ export default function ProgramsPage() {
   // Filters
   const [search, setSearch] = useState("")
   const [stateFilter, setStateFilter] = useState<string>("all")
-  const [sortBy, setSortBy] = useState("createdAt")
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
+  const [sortBy, setSortBy] = useState("name")
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
 
   // Refetch trigger — bump to re-run the effect from event handlers
   const [fetchKey, setFetchKey] = useState(0)
@@ -132,6 +132,23 @@ export default function ProgramsPage() {
     setFormOpen(true)
   }
 
+  const toggleSort = (field: string) => {
+    setIsLoading(true)
+    if (sortBy === field) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
+    } else {
+      setSortBy(field)
+      setSortOrder("asc")
+    }
+  }
+
+  const sortIcon = (field: string) => {
+    if (sortBy !== field) return null
+    return sortOrder === "asc"
+      ? <ArrowUp className="inline h-3.5 w-3.5 ml-1" />
+      : <ArrowDown className="inline h-3.5 w-3.5 ml-1" />
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -168,25 +185,6 @@ export default function ProgramsPage() {
             <SelectItem value="ENDED">Ended</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={sortBy} onValueChange={(v) => { setIsLoading(true); setSortBy(v) }}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Sort by" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="createdAt">Created Date</SelectItem>
-            <SelectItem value="name">Name</SelectItem>
-            <SelectItem value="startDate">Start Date</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={sortOrder} onValueChange={(v) => { setIsLoading(true); setSortOrder(v as "asc" | "desc") }}>
-          <SelectTrigger className="w-[110px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="desc">Newest</SelectItem>
-            <SelectItem value="asc">Oldest</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Table */}
@@ -218,9 +216,9 @@ export default function ProgramsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>State</TableHead>
-                  <TableHead>Start Date</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("name")}>Name{sortIcon("name")}</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("state")}>State{sortIcon("state")}</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("startDate")}>Start Date{sortIcon("startDate")}</TableHead>
                   <TableHead>Projects</TableHead>
                   <TableHead>Budget</TableHead>
                   <TableHead>Created By</TableHead>

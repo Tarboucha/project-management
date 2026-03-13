@@ -11,6 +11,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { createProgramSchema, updateProgramSchema } from "@/lib/validations/program"
 import { api } from "@/lib/utils/api-client"
 import { DatePicker } from "@/components/ui/date-picker"
@@ -29,6 +36,7 @@ interface ProgramFormDialogProps {
     endDate?: string | null
     budgetEstimated?: number | string | null
     currency?: string | null
+    state?: string
   }
 }
 
@@ -40,6 +48,7 @@ export function ProgramFormDialog({
 }: ProgramFormDialogProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [selectedState, setSelectedState] = useState(program?.state ?? "ACTIVE")
   const isEditing = !!program
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -53,7 +62,7 @@ export function ProgramFormDialog({
       startDate: formData.get("startDate") as string,
       endDate: (formData.get("endDate") as string) || undefined,
       currency: (formData.get("currency") as string) || "EUR",
-      ...(isEditing && { version: program!.version }),
+      ...(isEditing && { version: program!.version, state: selectedState }),
     }
 
     const budgetStr = formData.get("budgetEstimated") as string
@@ -124,12 +133,27 @@ export function ProgramFormDialog({
             />
           </div>
 
+          {isEditing && (
+            <div className="grid gap-2">
+              <Label>State</Label>
+              <Select value={selectedState} onValueChange={setSelectedState}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="ENDED">Ended</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label>Start Date *</Label>
               <DatePicker
                 name="startDate"
-                defaultValue={program?.startDate?.slice(0, 10)}
+                defaultValue={program?.startDate?.slice(0, 10) ?? new Date().toISOString().slice(0, 10)}
                 required
                 disabled={isLoading}
               />

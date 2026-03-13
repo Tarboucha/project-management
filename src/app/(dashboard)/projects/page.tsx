@@ -46,8 +46,8 @@ export default function ProjectsPage() {
 
   // Search and sort
   const [search, setSearch] = useState("")
-  const [sortBy, setSortBy] = useState("createdAt")
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
+  const [sortBy, setSortBy] = useState("projectCode")
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
 
   const buildParams = useCallback((cursor?: string | null) => {
     const params = new URLSearchParams()
@@ -187,7 +187,7 @@ export default function ProjectsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Code</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("projectCode")}>Code{sortIcon("projectCode")}</TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("name")}>Name{sortIcon("name")}</TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("programName")}>Program{sortIcon("programName")}</TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("state")}>State{sortIcon("state")}</TableHead>

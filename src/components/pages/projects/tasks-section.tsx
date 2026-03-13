@@ -35,7 +35,7 @@ import { StateBadge } from "@/components/pages/shared/state-badge"
 import { DeleteConfirmDialog } from "@/components/pages/shared/delete-confirm-dialog"
 import { AuditLogDialog } from "@/components/pages/shared/audit-log-dialog"
 import { TaskFormDialog } from "@/components/pages/projects/task-form-dialog"
-import { Plus, Pencil, Trash2, Search, History, Check } from "lucide-react"
+import { Plus, Pencil, Trash2, Search, History, Check, ArrowUp, ArrowDown } from "lucide-react"
 import { toast } from "sonner"
 import type { TaskListItem as Task } from "@/types"
 import { priorityVariant } from "@/lib/utils/badges"
@@ -52,6 +52,10 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [fetchKey, setFetchKey] = useState(0)
+
+  // Sorting
+  const [sortBy, setSortBy] = useState("taskOrder")
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
 
   // Filters
   const [search, setSearch] = useState("")
@@ -87,8 +91,8 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
       if (stateFilter !== "all") params.set("state", stateFilter)
       if (priorityFilter !== "all") params.set("priority", priorityFilter)
       params.set("limit", "50")
-      params.set("sortBy", "taskOrder")
-      params.set("sortOrder", "asc")
+      params.set("sortBy", sortBy)
+      params.set("sortOrder", sortOrder)
 
       const res = await api.get<Task[]>(
         `/api/projects/${projectId}/tasks?${params.toString()}`
@@ -103,7 +107,7 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
 
     doFetch()
     return () => { cancelled = true }
-  }, [projectId, fetchKey, search, stateFilter, priorityFilter])
+  }, [projectId, fetchKey, search, stateFilter, priorityFilter, sortBy, sortOrder])
 
   const refetch = () => {
     setIsLoading(true)
@@ -143,6 +147,23 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
       toast.error("Failed to update progress")
     }
     setSavingProgress(false)
+  }
+
+  const toggleSort = (field: string) => {
+    setIsLoading(true)
+    if (sortBy === field) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
+    } else {
+      setSortBy(field)
+      setSortOrder("asc")
+    }
+  }
+
+  const sortIcon = (field: string) => {
+    if (sortBy !== field) return null
+    return sortOrder === "asc"
+      ? <ArrowUp className="inline h-3.5 w-3.5 ml-1" />
+      : <ArrowDown className="inline h-3.5 w-3.5 ml-1" />
   }
 
   if (isLoading) {
@@ -217,11 +238,11 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12">Ord</TableHead>
-                <TableHead>Objective</TableHead>
-                <TableHead>Priority</TableHead>
-                <TableHead>State</TableHead>
-                <TableHead>Progress</TableHead>
+                <TableHead className="w-12 cursor-pointer select-none" onClick={() => toggleSort("taskOrder")}>Ord{sortIcon("taskOrder")}</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("objective")}>Objective{sortIcon("objective")}</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("priority")}>Priority{sortIcon("priority")}</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("state")}>State{sortIcon("state")}</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("progress")}>Progress{sortIcon("progress")}</TableHead>
                 <TableHead>Owner</TableHead>
                 {canManage && <TableHead className="w-24" />}
               </TableRow>

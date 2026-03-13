@@ -19,7 +19,7 @@ export const GET = withAnyAuth(async (actor, request: NextRequest) => {
   const searchParams = request.nextUrl.searchParams
   const pagination = parseCursorPagination(searchParams)
   const filters = parseFilters(searchParams, ["state", "search"])
-  const sorting = parseSorting(searchParams, ["name", "createdAt", "startDate"])
+  const sorting = parseSorting(searchParams, ["name", "createdAt", "startDate", "state"], "name", "asc")
 
   const where: Prisma.ProgramWhereInput = {
     deletedAt: null,

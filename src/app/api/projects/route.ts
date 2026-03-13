@@ -16,11 +16,12 @@ export const GET = withAnyAuth(async (actor, request: NextRequest) => {
   const pagination = parseCursorPagination(searchParams)
   const filters = parseFilters(searchParams, ["state", "search", "programId"])
   const multiFilters = parseMultiFilters(searchParams, ["activityId", "themeId", "categoryId"])
-  const sorting = parseSorting(searchParams, ["name", "createdAt", "startDate", "progress", "state", "programName", "members", "tasks"])
+  const sorting = parseSorting(searchParams, ["name", "projectCode", "createdAt", "startDate", "progress", "state", "programName", "members", "tasks"], "projectCode", "asc")
 
   // Map sort fields to Prisma orderBy (some require nested/relation syntax)
   const orderByMap: Record<string, Prisma.ProjectOrderByWithRelationInput> = {
     name: { name: sorting.order },
+    projectCode: { projectCode: sorting.order },
     createdAt: { createdAt: sorting.order },
     startDate: { startDate: sorting.order },
     progress: { progress: sorting.order },

@@ -23,7 +23,7 @@ export const GET = withAdminOrProjectRole<Params>("CONTRIBUTOR", async (actor, r
   const searchParams = request.nextUrl.searchParams
   const pagination = parseCursorPagination(searchParams)
   const filters = parseFilters(searchParams, ["state", "search", "priority"])
-  const sorting = parseSorting(searchParams, ["taskOrder", "objective", "createdAt", "startDate", "priority", "progress"], "taskOrder", "asc")
+  const sorting = parseSorting(searchParams, ["taskOrder", "objective", "createdAt", "startDate", "priority", "progress", "state"], "taskOrder", "asc")
 
   const where: Prisma.TaskWhereInput = {
     projectId,

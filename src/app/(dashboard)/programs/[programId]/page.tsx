@@ -23,7 +23,7 @@ import { ProgramFormDialog } from "@/components/pages/programs/program-form-dial
 import { ProjectFormDialog } from "@/components/pages/projects/project-form-dialog"
 import { AuditLogSection } from "@/components/pages/shared/audit-log-section"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, Plus, Pencil, Trash2, Briefcase, FileDown } from "lucide-react"
+import { ArrowLeft, Plus, Pencil, Trash2, Briefcase, FileDown, ArrowUp, ArrowDown } from "lucide-react"
 import { toast } from "sonner"
 import type { Program } from "@/types"
 import type { ProjectListItem as Project } from "@/types"
@@ -40,6 +40,10 @@ export default function ProgramDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [projectsLoading, setProjectsLoading] = useState(true)
   const [fetchKey, setFetchKey] = useState(0)
+
+  // Sorting
+  const [sortBy, setSortBy] = useState("projectCode")
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
 
   // Dialogs
   const [editOpen, setEditOpen] = useState(false)
@@ -71,7 +75,7 @@ export default function ProgramDetailPage() {
 
     const doFetch = async () => {
       const res = await api.get(
-        `/api/programs/${programId}/projects?limit=50`
+        `/api/programs/${programId}/projects?limit=50&sortBy=${sortBy}&sortOrder=${sortOrder}`
       )
       if (cancelled) return
       if (res.success) {
@@ -83,7 +87,7 @@ export default function ProgramDetailPage() {
 
     doFetch()
     return () => { cancelled = true }
-  }, [programId, fetchKey])
+  }, [programId, fetchKey, sortBy, sortOrder])
 
   const refetch = () => {
     setIsLoading(true)
@@ -112,6 +116,23 @@ export default function ProgramDetailPage() {
         <Skeleton className="h-64 w-full" />
       </div>
     )
+  }
+
+  const toggleSort = (field: string) => {
+    setProjectsLoading(true)
+    if (sortBy === field) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
+    } else {
+      setSortBy(field)
+      setSortOrder("asc")
+    }
+  }
+
+  const sortIcon = (field: string) => {
+    if (sortBy !== field) return null
+    return sortOrder === "asc"
+      ? <ArrowUp className="inline h-3.5 w-3.5 ml-1" />
+      : <ArrowDown className="inline h-3.5 w-3.5 ml-1" />
   }
 
   if (!program) return null
@@ -240,11 +261,11 @@ export default function ProgramDetailPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>State</TableHead>
-                  <TableHead>Progress</TableHead>
-                  <TableHead>Start Date</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("projectCode")}>Code{sortIcon("projectCode")}</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("name")}>Name{sortIcon("name")}</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("state")}>State{sortIcon("state")}</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("progress")}>Progress{sortIcon("progress")}</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("startDate")}>Start Date{sortIcon("startDate")}</TableHead>
                   <TableHead>Members</TableHead>
                   <TableHead>Tasks</TableHead>
                 </TableRow>

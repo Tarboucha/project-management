@@ -38,6 +38,7 @@ interface TaskFormDialogProps {
     startDate: string
     endDate?: string | null
     budgetEstimated?: number | string | null
+    state?: string
   }
 }
 
@@ -51,6 +52,7 @@ export function TaskFormDialog({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedPriority, setSelectedPriority] = useState<string>(task?.priority ?? "NORMAL")
+  const [selectedState, setSelectedState] = useState<string>(task?.state ?? "ACTIVE")
   const isEditing = !!task
 
   useEffect(() => {
@@ -58,6 +60,7 @@ export function TaskFormDialog({
 
     // Reset selections when dialog opens
     setSelectedPriority(task?.priority ?? "NORMAL")
+    setSelectedState(task?.state ?? "ACTIVE")
     setError(null)
   }, [open, projectId, task])
 
@@ -74,7 +77,7 @@ export function TaskFormDialog({
       taskOrder: orderStr ? parseInt(orderStr, 10) : undefined,
       startDate: formData.get("startDate") as string,
       endDate: (formData.get("endDate") as string) || undefined,
-      ...(isEditing && { version: task!.version }),
+      ...(isEditing && { version: task!.version, state: selectedState }),
     }
 
     const budgetStr = formData.get("budgetEstimated") as string
@@ -161,20 +164,36 @@ export function TaskFormDialog({
             />
           </div>
 
-          <div className="grid gap-2">
-            <Label>Priority</Label>
-            <Select value={selectedPriority} onValueChange={setSelectedPriority}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="LOW">Low</SelectItem>
-                <SelectItem value="NORMAL">Normal</SelectItem>
-                <SelectItem value="MEDIUM">Medium</SelectItem>
-                <SelectItem value="HIGH">High</SelectItem>
-                <SelectItem value="URGENT">Urgent</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label>Priority</Label>
+              <Select value={selectedPriority} onValueChange={setSelectedPriority}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="LOW">Low</SelectItem>
+                  <SelectItem value="NORMAL">Normal</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="HIGH">High</SelectItem>
+                  <SelectItem value="URGENT">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {isEditing && (
+              <div className="grid gap-2">
+                <Label>State</Label>
+                <Select value={selectedState} onValueChange={setSelectedState}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ACTIVE">Active</SelectItem>
+                    <SelectItem value="ENDED">Ended</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -182,7 +201,7 @@ export function TaskFormDialog({
               <Label>Start Date *</Label>
               <DatePicker
                 name="startDate"
-                defaultValue={task?.startDate?.slice(0, 10)}
+                defaultValue={task?.startDate?.slice(0, 10) ?? new Date().toISOString().slice(0, 10)}
                 required
                 disabled={isLoading}
               />
