@@ -187,6 +187,7 @@ export default function ProjectsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Code</TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("name")}>Name{sortIcon("name")}</TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("programName")}>Program{sortIcon("programName")}</TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("state")}>State{sortIcon("state")}</TableHead>
@@ -200,6 +201,7 @@ export default function ProjectsPage() {
               <TableBody>
                 {projects.map((project) => (
                   <TableRow key={project.id}>
+                    <TableCell className="text-muted-foreground font-mono text-xs">{project.projectCode}</TableCell>
                     <TableCell>
                       <Link
                         href={`/projects/${project.id}`}

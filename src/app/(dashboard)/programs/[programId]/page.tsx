@@ -23,7 +23,7 @@ import { ProgramFormDialog } from "@/components/pages/programs/program-form-dial
 import { ProjectFormDialog } from "@/components/pages/projects/project-form-dialog"
 import { AuditLogSection } from "@/components/pages/shared/audit-log-section"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, Plus, Pencil, Trash2, Briefcase } from "lucide-react"
+import { ArrowLeft, Plus, Pencil, Trash2, Briefcase, FileDown } from "lucide-react"
 import { toast } from "sonner"
 import type { Program } from "@/types"
 import type { ProjectListItem as Project } from "@/types"
@@ -134,23 +134,31 @@ export default function ProgramDetailPage() {
             <p className="text-muted-foreground ml-10">{program.description}</p>
           )}
         </div>
-        {isAdmin() && (
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-destructive"
-              onClick={() => setDeleteOpen(true)}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </Button>
-          </div>
-        )}
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <a href={`/api/programs/${programId}/report`} target="_blank" rel="noopener noreferrer">
+              <FileDown className="mr-2 h-4 w-4" />
+              PDF
+            </a>
+          </Button>
+          {isAdmin() && (
+            <>
+              <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Program Info Cards */}
@@ -232,6 +240,7 @@ export default function ProgramDetailPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Code</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>State</TableHead>
                   <TableHead>Progress</TableHead>
@@ -243,6 +252,7 @@ export default function ProgramDetailPage() {
               <TableBody>
                 {projects.map((project) => (
                   <TableRow key={project.id}>
+                    <TableCell className="text-muted-foreground font-mono text-xs">{project.projectCode}</TableCell>
                     <TableCell>
                       <Link
                         href={`/projects/${project.id}`}

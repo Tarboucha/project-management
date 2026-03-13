@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { withRLS } from "@/lib/prisma/rls"
 import { ApiErrors, handleUnsupportedMethod } from "@/lib/utils/api-response"
-import { withAdminOrProjectRole } from "@/lib/utils/api-route-helper"
-import { buildProjectReport } from "@/lib/pdf/project-report"
+import { withAnyAuth } from "@/lib/utils/api-route-helper"
+import { buildProgramReport } from "@/lib/pdf/program-report"
 import type { TDocumentDefinitions } from "pdfmake/interfaces"
 import path from "path"
 
@@ -11,7 +11,7 @@ const PdfPrinter = require("pdfmake/js/Printer").default
 
 const noOpUrlResolver = { resolve: () => {}, resolved: () => Promise.resolve() }
 
-type Params = { projectId: string }
+type Params = { programId: string }
 
 const FONTS_DIR = path.join(process.cwd(), "node_modules/pdfmake/build/fonts/Roboto")
 
@@ -37,73 +37,61 @@ async function generatePdfBuffer(docDefinition: TDocumentDefinitions): Promise<B
   })
 }
 
-export const GET = withAdminOrProjectRole<Params>("CONTRIBUTOR", async (actor, _request: NextRequest, params) => {
-  const { projectId } = params!
+export const GET = withAnyAuth<Params>(async (actor, _request: NextRequest, params) => {
+  const { programId } = params!
 
-  const project = await withRLS(actor, (db) =>
-    db.project.findUnique({
-      where: { id: projectId },
+  const program = await withRLS(actor, async (db) => {
+    const prog = await db.program.findUnique({
+      where: { id: programId },
+    })
+
+    if (!prog || prog.deletedAt) return null
+
+    // Non-admin: verify actor has membership in at least one project under this program
+    if (actor.systemRole !== "ADMIN") {
+      const membership = await db.projectMember.findFirst({
+        where: {
+          actorId: actor.id,
+          deletedAt: null,
+          project: { programId, deletedAt: null },
+        },
+      })
+      if (!membership) return null
+    }
+
+    const projects = await db.project.findMany({
+      where: { programId, deletedAt: null },
+      orderBy: { name: "asc" },
       include: {
-        program: { select: { name: true } },
-        activity: { select: { name: true } },
-        theme: { select: { name: true } },
-        category: { select: { name: true } },
         members: {
           where: { deletedAt: null },
           include: {
-            actor: { select: { firstName: true, lastName: true, email: true } },
-          },
-        },
-        tasks: {
-          where: { deletedAt: null },
-          orderBy: { taskOrder: "asc" },
-          select: {
-            taskOrder: true,
-            objective: true,
-            details: true,
-            priority: true,
-            state: true,
-            progress: true,
-            startDate: true,
-            endDate: true,
-            owner: { select: { firstName: true, lastName: true } },
-          },
-        },
-        todos: {
-          where: { deletedAt: null },
-          orderBy: { todoOrder: "asc" },
-          select: {
-            action: true,
-            todoOrder: true,
-            status: true,
-            deliveryDate: true,
-            comments: true,
-            responsible: { select: { firstName: true, lastName: true } },
+            actor: { select: { firstName: true, lastName: true } },
           },
         },
       },
     })
-  )
 
-  if (!project || project.deletedAt) {
-    return ApiErrors.notFound("Project")
+    return { program: prog, projects }
+  })
+
+  if (!program) {
+    return ApiErrors.notFound("Program")
   }
 
-  const docDefinition = buildProjectReport({
-    project,
-    members: project.members,
-    tasks: project.tasks,
-    todos: project.todos,
+  const docDefinition = buildProgramReport({
+    program: program.program,
+    projects: program.projects,
   })
 
   const buffer = await generatePdfBuffer(docDefinition)
 
-  const safeName = project.name.replace(/[^a-zA-Z0-9-_ ]/g, "").replace(/\s+/g, "-")
+  const safeName = program.program.name.replace(/[^a-zA-Z0-9-_ ]/g, "").replace(/\s+/g, "-")
 
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="project-${safeName}-summary.pdf"`,
+      "Content-Disposition": `attachment; filename="program-${safeName}-summary.pdf"`,
     },
   })
 })

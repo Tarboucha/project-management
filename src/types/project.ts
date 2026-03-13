@@ -8,6 +8,7 @@ export interface MemberEntry {
 
 export interface ProjectListItem {
   id: string
+  projectCode: string | null
   name: string
   state: EntityState
   progress: number

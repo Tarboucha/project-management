@@ -51,6 +51,7 @@ interface DashboardTodo {
 
 interface DashboardProject {
   id: string
+  projectCode: string | null
   name: string
   state: "ACTIVE" | "ENDED"
   progress: number
@@ -305,6 +306,7 @@ export default function DashboardPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Code</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Program</TableHead>
                   <TableHead>State</TableHead>
@@ -316,6 +318,7 @@ export default function DashboardPage() {
               <TableBody>
                 {projects.map((project) => (
                   <TableRow key={project.id}>
+                    <TableCell className="text-muted-foreground font-mono text-xs">{project.projectCode}</TableCell>
                     <TableCell>
                       <Link
                         href={`/projects/${project.id}`}
