@@ -2,7 +2,7 @@ import { mkdir, writeFile, unlink, access } from "fs/promises"
 import { join } from "path"
 import { randomUUID } from "crypto"
 
-const UPLOADS_DIR = join(process.cwd(), "uploads")
+const UPLOADS_DIR = process.env.UPLOAD_BASE_PATH || join(process.cwd(), "uploads")
 
 export const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
 

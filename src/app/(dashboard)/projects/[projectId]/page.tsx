@@ -17,6 +17,7 @@ import { ProjectFormDialog } from "@/components/pages/projects/project-form-dial
 import { ProjectMembersSection } from "@/components/pages/projects/project-members-section"
 import { TasksSection } from "@/components/pages/projects/tasks-section"
 import { TodosSection } from "@/components/pages/projects/todos-section"
+import { ReviewsSection } from "@/components/pages/projects/reviews-section"
 import { AuditLogSection } from "@/components/pages/shared/audit-log-section"
 import { ArrowLeft, Check, FileDown, Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
@@ -262,6 +263,11 @@ export default function ProjectDetailPage() {
 
       {/* Todos Section */}
       <TodosSection projectId={projectId} canManage={canEdit} members={project.members} />
+
+      <Separator />
+
+      {/* Reviews Section */}
+      <ReviewsSection projectId={projectId} projectRole={myProjectRole} />
 
       {/* Audit Log Section */}
       {canEdit && (

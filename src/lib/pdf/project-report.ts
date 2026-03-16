@@ -43,6 +43,11 @@ export interface ProjectReportData {
     comments?: string | null
     responsible?: { firstName: string; lastName: string } | null
   }>
+  reviews: Array<{
+    reviewDate: string | Date
+    notes: string
+    createdBy: { firstName: string; lastName: string }
+  }>
 }
 
 // ============================================================
@@ -164,12 +169,35 @@ function buildTodosTable(todos: ProjectReportData["todos"]): Content {
   }
 }
 
+function buildReviewsTable(reviews: ProjectReportData["reviews"]): Content {
+  if (reviews.length === 0) {
+    return { text: "No reviews yet.", italics: true, color: "#6b7280", margin: [0, 0, 0, 10] }
+  }
+
+  return {
+    table: {
+      headerRows: 1,
+      widths: ["auto", "*", "auto"],
+      body: [
+        [headerCell("Date"), headerCell("Notes"), headerCell("By")],
+        ...reviews.map((r) => [
+          { text: formatDate(r.reviewDate), fontSize: 10 },
+          { text: r.notes, fontSize: 10 },
+          { text: `${r.createdBy.firstName} ${r.createdBy.lastName}`, fontSize: 10 },
+        ]),
+      ],
+    },
+    layout: "lightHorizontalLines",
+    margin: [0, 0, 0, 10] as [number, number, number, number],
+  }
+}
+
 // ============================================================
 // MAIN BUILDER
 // ============================================================
 
 export function buildProjectReport(data: ProjectReportData): TDocumentDefinitions {
-  const { project, members, tasks, todos } = data
+  const { project, members, tasks, todos, reviews } = data
 
   const activeTasks = tasks.filter((t) => t.state === "ACTIVE").length
   const completedTasks = tasks.filter((t) => t.state === "ENDED").length
@@ -253,6 +281,10 @@ export function buildProjectReport(data: ProjectReportData): TDocumentDefinition
       // Todos
       { text: `To-Dos (${todos.length})`, style: "sectionHeader" },
       buildTodosTable(todos),
+
+      // Reviews
+      { text: `Reviews (${reviews.length})`, style: "sectionHeader" },
+      buildReviewsTable(reviews),
     ],
 
     styles: {

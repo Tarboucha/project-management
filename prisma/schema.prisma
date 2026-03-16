@@ -152,6 +152,7 @@ model Actor {
   todosResponsible    Todo[]            @relation("TodoResponsible")
   todosCreated        Todo[]            @relation("TodoCreatedBy")
   uploadedAttachments Attachment[]      @relation("AttachmentUploadedBy")
+  createdReviews      Review[]          @relation("ReviewCreatedBy")
 
   @@index([email], map: "idx_actor_email")
   @@index([isActive], map: "idx_actor_is_active", where: raw("(deleted_at IS NULL)"))
@@ -222,6 +223,7 @@ model Project {
   members    ProjectMember[]
   tasks      Task[]
   todos      Todo[]
+  reviews    Review[]
   auditLogs  AuditLog[]
 
   @@index([createdById], map: "idx_project_created_by")
@@ -390,9 +392,7 @@ model Attachment {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   deliverableId String   @map("deliverable_id") @db.Uuid
   name          String   @db.VarChar(255)
-  fileUrl       String?  @map("file_url")
-  fileType      String?  @map("file_type") @db.VarChar(100)
-  fileSize      Int?     @map("file_size")
+  url           String
   uploadedById  String?  @map("uploaded_by_id") @db.Uuid
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
@@ -403,6 +403,31 @@ model Attachment {
   @@index([deliverableId], map: "idx_attachment_deliverable")
   @@index([uploadedById], map: "idx_attachment_uploaded_by")
   @@map("attachment")
+  @@schema("public")
+}
+
+// ============================================================
+// REVIEW
+// ============================================================
+
+model Review {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId   String    @map("project_id") @db.Uuid
+  reviewDate  DateTime  @map("review_date") @db.Date
+  notes       String
+  createdById String    @map("created_by_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  modifiedAt  DateTime? @map("modified_at") @db.Timestamptz(6)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+  version     Int       @default(1)
+
+  // Relations
+  createdBy Actor   @relation("ReviewCreatedBy", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([projectId], map: "idx_review_project", where: raw("(deleted_at IS NULL)"))
+  @@index([projectId, reviewDate], map: "idx_review_date", where: raw("(deleted_at IS NULL)"))
+  @@map("review")
   @@schema("public")
 }
 
