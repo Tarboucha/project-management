@@ -254,7 +254,7 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
                   <TableCell className="font-medium max-w-[250px]">
                     <Link
                       href={`/projects/${projectId}/tasks/${task.id}`}
-                      className="line-clamp-1 hover:underline"
+                      className="block truncate hover:underline"
                     >
                       {task.objective}
                     </Link>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { api } from "@/lib/utils/api-client"
 import type { CursorPaginatedResult } from "@/types/api"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
 import { AuditLogTable } from "@/components/pages/shared/audit-log-table"
 import type { AuditEntry } from "@/types"
 
@@ -15,6 +16,9 @@ interface AuditLogSectionProps {
 export function AuditLogSection({ apiUrl, title = "Recent Activity" }: AuditLogSectionProps) {
   const [entries, setEntries] = useState<AuditEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -26,6 +30,8 @@ export function AuditLogSection({ apiUrl, title = "Recent Activity" }: AuditLogS
       if (res.success) {
         const paginated = res as CursorPaginatedResult<AuditEntry>
         setEntries(paginated.data)
+        setNextCursor(paginated.nextCursor)
+        setHasMore(paginated.hasMore)
       }
       setIsLoading(false)
     }
@@ -33,6 +39,20 @@ export function AuditLogSection({ apiUrl, title = "Recent Activity" }: AuditLogS
     doFetch()
     return () => { cancelled = true }
   }, [apiUrl])
+
+  const loadMore = async () => {
+    if (!nextCursor) return
+    setLoadingMore(true)
+    const separator = apiUrl.includes("?") ? "&" : "?"
+    const res = await api.get(`${apiUrl}${separator}limit=10&cursor=${nextCursor}`)
+    if (res.success) {
+      const paginated = res as CursorPaginatedResult<AuditEntry>
+      setEntries((prev) => [...prev, ...paginated.data])
+      setNextCursor(paginated.nextCursor)
+      setHasMore(paginated.hasMore)
+    }
+    setLoadingMore(false)
+  }
 
   if (isLoading) {
     return (
@@ -49,6 +69,18 @@ export function AuditLogSection({ apiUrl, title = "Recent Activity" }: AuditLogS
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">{title}</h2>
       <AuditLogTable entries={entries} showEntityType={true} />
+      {hasMore && (
+        <div className="flex justify-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadMore}
+            disabled={loadingMore}
+          >
+            {loadingMore ? "Loading..." : "Load more"}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

@@ -13,6 +13,12 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { DeleteConfirmDialog } from "@/components/pages/shared/delete-confirm-dialog"
 import { ReviewFormDialog } from "@/components/pages/projects/review-form-dialog"
 import { Plus, Pencil, Trash2 } from "lucide-react"
@@ -42,8 +48,8 @@ export function ReviewsSection({ projectId, projectRole }: ReviewsSectionProps) 
   const [deletingReview, setDeletingReview] = useState<ReviewItem | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
-  // Expanded notes
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  // View dialog
+  const [viewingReview, setViewingReview] = useState<ReviewItem | null>(null)
 
   const canManage = admin || projectRole === "DIRECTOR" || projectRole === "MANAGER"
 
@@ -133,18 +139,12 @@ export function ReviewsSection({ projectId, projectRole }: ReviewsSectionProps) 
                   <TableCell className="text-muted-foreground">
                     {formatDate(review.reviewDate)}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="max-w-[300px]">
                     <button
-                      className="text-left cursor-pointer hover:opacity-70"
-                      onClick={() =>
-                        setExpandedId(expandedId === review.id ? null : review.id)
-                      }
+                      className="text-left cursor-pointer hover:underline w-full"
+                      onClick={() => setViewingReview(review)}
                     >
-                      {expandedId === review.id ? (
-                        <span className="whitespace-pre-wrap">{review.notes}</span>
-                      ) : (
-                        <span className="line-clamp-2">{review.notes}</span>
-                      )}
+                      <span className="block truncate">{review.notes}</span>
                     </button>
                   </TableCell>
                   <TableCell>
@@ -185,6 +185,26 @@ export function ReviewsSection({ projectId, projectRole }: ReviewsSectionProps) 
           </Table>
         </div>
       )}
+
+      {/* View dialog */}
+      <Dialog open={!!viewingReview} onOpenChange={(open) => !open && setViewingReview(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              Review — {viewingReview ? formatDate(viewingReview.reviewDate) : ""}
+            </DialogTitle>
+          </DialogHeader>
+          {viewingReview && (
+            <div className="space-y-4">
+              <p className="text-sm whitespace-pre-wrap">{viewingReview.notes}</p>
+              <div className="flex items-center justify-between text-xs text-muted-foreground border-t pt-3">
+                <span>By {viewingReview.createdBy.firstName} {viewingReview.createdBy.lastName}</span>
+                <span>{formatDate(viewingReview.createdAt)}</span>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <ReviewFormDialog
         open={formOpen}

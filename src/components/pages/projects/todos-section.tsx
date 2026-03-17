@@ -13,6 +13,12 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { DeleteConfirmDialog } from "@/components/pages/shared/delete-confirm-dialog"
 import { TodoFormDialog } from "@/components/pages/projects/todo-form-dialog"
 import { ListTodo, Pencil, Plus, Trash2 } from "lucide-react"
@@ -34,6 +40,9 @@ export function TodosSection({ projectId, canManage, members }: TodosSectionProp
   const [todos, setTodos] = useState<TodoItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [fetchKey, setFetchKey] = useState(0)
+
+  // View dialog
+  const [viewingTodo, setViewingTodo] = useState<TodoItem | null>(null)
 
   // Dialogs
   const [formOpen, setFormOpen] = useState(false)
@@ -125,7 +134,14 @@ export function TodosSection({ projectId, canManage, members }: TodosSectionProp
               {todos.map((todo) => (
                 <TableRow key={todo.id}>
                   <TableCell className="text-muted-foreground">{todo.todoOrder}</TableCell>
-                  <TableCell className="font-medium">{todo.action}</TableCell>
+                  <TableCell className="font-medium max-w-[250px]">
+                    <button
+                      className="text-left cursor-pointer hover:underline w-full"
+                      onClick={() => setViewingTodo(todo)}
+                    >
+                      <span className="block truncate">{todo.action}</span>
+                    </button>
+                  </TableCell>
                   <TableCell>
                     <Badge variant={todo.status === "ACTIVE" ? "default" : "secondary"}>
                       {todo.status === "ACTIVE" ? "Active" : "Inactive"}
@@ -137,8 +153,8 @@ export function TodosSection({ projectId, canManage, members }: TodosSectionProp
                       ? `${todo.responsible.firstName} ${todo.responsible.lastName}`
                       : <span className="text-muted-foreground">—</span>}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
-                    {todo.comments || "—"}
+                  <TableCell className="text-sm text-muted-foreground max-w-[200px]">
+                    <span className="block truncate">{todo.comments || "—"}</span>
                   </TableCell>
                   {canManage && (
                     <TableCell>
@@ -168,6 +184,55 @@ export function TodosSection({ projectId, canManage, members }: TodosSectionProp
           </Table>
         </div>
       )}
+
+      {/* View dialog */}
+      <Dialog open={!!viewingTodo} onOpenChange={(open) => !open && setViewingTodo(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Todo Details</DialogTitle>
+          </DialogHeader>
+          {viewingTodo && (
+            <div className="space-y-4">
+              <div>
+                <div className="text-sm text-muted-foreground">Action</div>
+                <p className="text-sm font-medium">{viewingTodo.action}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm text-muted-foreground">Status</div>
+                  <Badge variant={viewingTodo.status === "ACTIVE" ? "default" : "secondary"}>
+                    {viewingTodo.status === "ACTIVE" ? "Active" : "Inactive"}
+                  </Badge>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Delivery Date</div>
+                  <p className="text-sm font-medium">{formatDate(viewingTodo.deliveryDate)}</p>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Responsible</div>
+                  <p className="text-sm font-medium">
+                    {viewingTodo.responsible
+                      ? `${viewingTodo.responsible.firstName} ${viewingTodo.responsible.lastName}`
+                      : "—"}
+                  </p>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Created By</div>
+                  <p className="text-sm font-medium">
+                    {viewingTodo.createdBy.firstName} {viewingTodo.createdBy.lastName}
+                  </p>
+                </div>
+              </div>
+              {viewingTodo.comments && (
+                <div>
+                  <div className="text-sm text-muted-foreground">Comments</div>
+                  <p className="text-sm whitespace-pre-wrap">{viewingTodo.comments}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Form dialog */}
       <TodoFormDialog
