@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useReducer, useRef } from "react"
 import { api } from "@/lib/utils/api-client"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -50,6 +50,105 @@ function timeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString()
 }
 
+// ── State & Actions ──────────────────────────────────────────
+
+interface DeliverablesState {
+  deliverables: DeliverableListItem[]
+  isLoading: boolean
+  fetchKey: number
+  // Expanded
+  expandedId: string | null
+  attachments: AttachmentItem[]
+  attachmentsLoading: boolean
+  // Dialogs
+  formOpen: boolean
+  editingDeliverable: DeliverableListItem | null
+  deleteOpen: boolean
+  deletingDeliverable: DeliverableListItem | null
+  deleteLoading: boolean
+  // Attachment delete
+  deleteAttOpen: boolean
+  deletingAttachment: { attachment: AttachmentItem; deliverableId: string } | null
+  deleteAttLoading: boolean
+  // Upload
+  uploading: boolean
+}
+
+type DeliverablesAction =
+  | { type: "SET_DELIVERABLES"; deliverables: DeliverableListItem[] }
+  | { type: "REFETCH" }
+  | { type: "EXPAND"; id: string }
+  | { type: "COLLAPSE" }
+  | { type: "SET_ATTACHMENTS"; attachments: AttachmentItem[] }
+  | { type: "SET_ATTACHMENTS_LOADING"; value: boolean }
+  | { type: "OPEN_CREATE" }
+  | { type: "OPEN_EDIT"; deliverable: DeliverableListItem }
+  | { type: "CLOSE_FORM" }
+  | { type: "OPEN_DELETE"; deliverable: DeliverableListItem }
+  | { type: "CLOSE_DELETE" }
+  | { type: "SET_DELETE_LOADING"; value: boolean }
+  | { type: "OPEN_DELETE_ATT"; attachment: AttachmentItem; deliverableId: string }
+  | { type: "CLOSE_DELETE_ATT" }
+  | { type: "SET_DELETE_ATT_LOADING"; value: boolean }
+  | { type: "SET_UPLOADING"; value: boolean }
+
+const initialState: DeliverablesState = {
+  deliverables: [],
+  isLoading: true,
+  fetchKey: 0,
+  expandedId: null,
+  attachments: [],
+  attachmentsLoading: false,
+  formOpen: false,
+  editingDeliverable: null,
+  deleteOpen: false,
+  deletingDeliverable: null,
+  deleteLoading: false,
+  deleteAttOpen: false,
+  deletingAttachment: null,
+  deleteAttLoading: false,
+  uploading: false,
+}
+
+function reducer(state: DeliverablesState, action: DeliverablesAction): DeliverablesState {
+  switch (action.type) {
+    case "SET_DELIVERABLES":
+      return { ...state, deliverables: action.deliverables, isLoading: false }
+    case "REFETCH":
+      return { ...state, isLoading: true, fetchKey: state.fetchKey + 1 }
+    case "EXPAND":
+      return { ...state, expandedId: action.id, attachmentsLoading: true }
+    case "COLLAPSE":
+      return { ...state, expandedId: null }
+    case "SET_ATTACHMENTS":
+      return { ...state, attachments: action.attachments, attachmentsLoading: false }
+    case "SET_ATTACHMENTS_LOADING":
+      return { ...state, attachmentsLoading: action.value }
+    case "OPEN_CREATE":
+      return { ...state, formOpen: true, editingDeliverable: null }
+    case "OPEN_EDIT":
+      return { ...state, formOpen: true, editingDeliverable: action.deliverable }
+    case "CLOSE_FORM":
+      return { ...state, formOpen: false, editingDeliverable: null }
+    case "OPEN_DELETE":
+      return { ...state, deleteOpen: true, deletingDeliverable: action.deliverable }
+    case "CLOSE_DELETE":
+      return { ...state, deleteOpen: false, deletingDeliverable: null, deleteLoading: false }
+    case "SET_DELETE_LOADING":
+      return { ...state, deleteLoading: action.value }
+    case "OPEN_DELETE_ATT":
+      return { ...state, deleteAttOpen: true, deletingAttachment: { attachment: action.attachment, deliverableId: action.deliverableId } }
+    case "CLOSE_DELETE_ATT":
+      return { ...state, deleteAttOpen: false, deletingAttachment: null, deleteAttLoading: false }
+    case "SET_DELETE_ATT_LOADING":
+      return { ...state, deleteAttLoading: action.value }
+    case "SET_UPLOADING":
+      return { ...state, uploading: action.value }
+  }
+}
+
+// ── Component ────────────────────────────────────────────────
+
 export function DeliverablesSection({
   projectId,
   taskId,
@@ -57,29 +156,7 @@ export function DeliverablesSection({
   isTaskOwner,
   currentActorId,
 }: DeliverablesSectionProps) {
-  const [deliverables, setDeliverables] = useState<DeliverableListItem[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [fetchKey, setFetchKey] = useState(0)
-
-  // Expanded deliverable state — stores id + attachments
-  const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [attachments, setAttachments] = useState<AttachmentItem[]>([])
-  const [attachmentsLoading, setAttachmentsLoading] = useState(false)
-
-  // Dialogs
-  const [formOpen, setFormOpen] = useState(false)
-  const [editingDeliverable, setEditingDeliverable] = useState<DeliverableListItem | null>(null)
-  const [deleteOpen, setDeleteOpen] = useState(false)
-  const [deletingDeliverable, setDeletingDeliverable] = useState<DeliverableListItem | null>(null)
-  const [deleteLoading, setDeleteLoading] = useState(false)
-
-  // Attachment delete
-  const [deleteAttOpen, setDeleteAttOpen] = useState(false)
-  const [deletingAttachment, setDeletingAttachment] = useState<{ attachment: AttachmentItem; deliverableId: string } | null>(null)
-  const [deleteAttLoading, setDeleteAttLoading] = useState(false)
-
-  // Upload
-  const [uploading, setUploading] = useState(false)
+  const [state, dispatch] = useReducer(reducer, initialState)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const uploadDeliverableIdRef = useRef<string | null>(null)
 
@@ -93,59 +170,52 @@ export function DeliverablesSection({
       const res = await api.get<DeliverableListItem[]>(basePath)
       if (cancelled) return
       if (res.success) {
-        setDeliverables(res.data)
+        dispatch({ type: "SET_DELIVERABLES", deliverables: res.data })
       }
-      setIsLoading(false)
     }
     doFetch()
     return () => { cancelled = true }
-  }, [basePath, fetchKey])
+  }, [basePath, state.fetchKey])
 
-  const refetch = () => {
-    setIsLoading(true)
-    setFetchKey((k) => k + 1)
-  }
+  const refetch = () => dispatch({ type: "REFETCH" })
 
   // Expand/collapse deliverable — fetch attachments on expand
   const toggleExpand = async (deliverableId: string) => {
-    if (expandedId === deliverableId) {
-      setExpandedId(null)
+    if (state.expandedId === deliverableId) {
+      dispatch({ type: "COLLAPSE" })
       return
     }
-    setExpandedId(deliverableId)
-    setAttachmentsLoading(true)
+    dispatch({ type: "EXPAND", id: deliverableId })
     const res = await api.get<AttachmentItem[]>(`${basePath}/${deliverableId}/attachments`)
     if (res.success) {
-      setAttachments(res.data)
+      dispatch({ type: "SET_ATTACHMENTS", attachments: res.data })
+    } else {
+      dispatch({ type: "SET_ATTACHMENTS_LOADING", value: false })
     }
-    setAttachmentsLoading(false)
   }
 
   // Refresh attachments for current expanded deliverable
   const refreshAttachments = async (deliverableId: string) => {
     const res = await api.get<AttachmentItem[]>(`${basePath}/${deliverableId}/attachments`)
     if (res.success) {
-      setAttachments(res.data)
+      dispatch({ type: "SET_ATTACHMENTS", attachments: res.data })
     }
-    // Also refresh deliverables to update _count
     refetch()
   }
 
   // Delete deliverable
   const handleDeleteDeliverable = async () => {
-    if (!deletingDeliverable) return
-    setDeleteLoading(true)
-    const res = await api.delete(`${basePath}/${deletingDeliverable.id}`)
+    if (!state.deletingDeliverable) return
+    dispatch({ type: "SET_DELETE_LOADING", value: true })
+    const res = await api.delete(`${basePath}/${state.deletingDeliverable.id}`)
     if (res.success) {
       toast.success("Deliverable deleted")
-      if (expandedId === deletingDeliverable.id) setExpandedId(null)
+      if (state.expandedId === state.deletingDeliverable.id) dispatch({ type: "COLLAPSE" })
       refetch()
     } else {
       toast.error("Failed to delete deliverable")
     }
-    setDeleteLoading(false)
-    setDeleteOpen(false)
-    setDeletingDeliverable(null)
+    dispatch({ type: "CLOSE_DELETE" })
   }
 
   // Upload attachment
@@ -159,10 +229,8 @@ export function DeliverablesSection({
     const deliverableId = uploadDeliverableIdRef.current
     if (!file || !deliverableId) return
 
-    // Reset input so same file can be re-selected
     e.target.value = ""
-
-    setUploading(true)
+    dispatch({ type: "SET_UPLOADING", value: true })
     try {
       const formData = new FormData()
       formData.append("file", file)
@@ -182,7 +250,7 @@ export function DeliverablesSection({
     } catch {
       toast.error("Upload failed")
     } finally {
-      setUploading(false)
+      dispatch({ type: "SET_UPLOADING", value: false })
     }
   }
 
@@ -193,9 +261,9 @@ export function DeliverablesSection({
 
   // Delete attachment
   const handleDeleteAttachment = async () => {
-    if (!deletingAttachment) return
-    setDeleteAttLoading(true)
-    const { attachment, deliverableId } = deletingAttachment
+    if (!state.deletingAttachment) return
+    dispatch({ type: "SET_DELETE_ATT_LOADING", value: true })
+    const { attachment, deliverableId } = state.deletingAttachment
     const res = await api.delete(`${basePath}/${deliverableId}/attachments/${attachment.id}`)
     if (res.success) {
       toast.success("Attachment deleted")
@@ -203,9 +271,7 @@ export function DeliverablesSection({
     } else {
       toast.error("Failed to delete attachment")
     }
-    setDeleteAttLoading(false)
-    setDeleteAttOpen(false)
-    setDeletingAttachment(null)
+    dispatch({ type: "CLOSE_DELETE_ATT" })
   }
 
   // Permission helpers
@@ -215,7 +281,7 @@ export function DeliverablesSection({
   const canDeleteAttachment = (att: AttachmentItem) =>
     canManage || att.uploadedBy?.id === currentActorId
 
-  if (isLoading) {
+  if (state.isLoading) {
     return (
       <div className="space-y-3">
         <Skeleton className="h-8 w-40" />
@@ -233,7 +299,7 @@ export function DeliverablesSection({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => { setEditingDeliverable(null); setFormOpen(true) }}
+            onClick={() => dispatch({ type: "OPEN_CREATE" })}
           >
             <Plus className="mr-2 h-4 w-4" />
             Add Deliverable
@@ -241,15 +307,15 @@ export function DeliverablesSection({
         )}
       </div>
 
-      {deliverables.length === 0 ? (
+      {state.deliverables.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-10">
           <FileText className="h-10 w-10 text-muted-foreground/50" />
           <p className="mt-3 text-sm text-muted-foreground">No deliverables yet</p>
         </div>
       ) : (
         <div className="space-y-2">
-          {deliverables.map((d) => {
-            const isExpanded = expandedId === d.id
+          {state.deliverables.map((d) => {
+            const isExpanded = state.expandedId === d.id
             return (
               <Collapsible key={d.id} open={isExpanded}>
                 <div className="rounded-md border">
@@ -292,7 +358,7 @@ export function DeliverablesSection({
                           variant="ghost"
                           size="sm"
                           className="h-7 w-7 p-0"
-                          onClick={() => { setEditingDeliverable(d); setFormOpen(true) }}
+                          onClick={() => dispatch({ type: "OPEN_EDIT", deliverable: d })}
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
@@ -300,7 +366,7 @@ export function DeliverablesSection({
                           variant="ghost"
                           size="sm"
                           className="h-7 w-7 p-0 text-destructive"
-                          onClick={() => { setDeletingDeliverable(d); setDeleteOpen(true) }}
+                          onClick={() => dispatch({ type: "OPEN_DELETE", deliverable: d })}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
@@ -310,18 +376,18 @@ export function DeliverablesSection({
 
                   <CollapsibleContent>
                     <div className="border-t px-3 py-3 bg-muted/30">
-                      {attachmentsLoading ? (
+                      {state.attachmentsLoading ? (
                         <div className="space-y-2">
                           <Skeleton className="h-8 w-full" />
                           <Skeleton className="h-8 w-full" />
                         </div>
                       ) : (
                         <>
-                          {attachments.length === 0 ? (
+                          {state.attachments.length === 0 ? (
                             <p className="text-sm text-muted-foreground">No attachments</p>
                           ) : (
                             <div className="space-y-1.5">
-                              {attachments.map((att) => (
+                              {state.attachments.map((att) => (
                                 <div
                                   key={att.id}
                                   className="flex items-center gap-3 rounded-md border bg-background p-2"
@@ -353,10 +419,7 @@ export function DeliverablesSection({
                                         variant="ghost"
                                         size="sm"
                                         className="h-7 w-7 p-0 text-destructive"
-                                        onClick={() => {
-                                          setDeletingAttachment({ attachment: att, deliverableId: d.id })
-                                          setDeleteAttOpen(true)
-                                        }}
+                                        onClick={() => dispatch({ type: "OPEN_DELETE_ATT", attachment: att, deliverableId: d.id })}
                                       >
                                         <Trash2 className="h-3.5 w-3.5" />
                                       </Button>
@@ -372,11 +435,11 @@ export function DeliverablesSection({
                               variant="outline"
                               size="sm"
                               className="mt-3"
-                              disabled={uploading}
+                              disabled={state.uploading}
                               onClick={() => handleUploadClick(d.id)}
                             >
                               <Upload className="mr-2 h-3.5 w-3.5" />
-                              {uploading ? "Uploading..." : "Upload File"}
+                              {state.uploading ? "Uploading..." : "Upload File"}
                             </Button>
                           )}
                         </>
@@ -400,40 +463,40 @@ export function DeliverablesSection({
 
       {/* Deliverable form dialog */}
       <DeliverableFormDialog
-        open={formOpen}
-        onOpenChange={setFormOpen}
+        open={state.formOpen}
+        onOpenChange={(open) => !open && dispatch({ type: "CLOSE_FORM" })}
         onSuccess={refetch}
         projectId={projectId}
         taskId={taskId}
-        deliverable={editingDeliverable ?? undefined}
+        deliverable={state.editingDeliverable ?? undefined}
       />
 
       {/* Delete deliverable dialog */}
       <DeleteConfirmDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
+        open={state.deleteOpen}
+        onOpenChange={(open) => !open && dispatch({ type: "CLOSE_DELETE" })}
         onConfirm={handleDeleteDeliverable}
         title="Delete Deliverable"
         description={
-          deletingDeliverable
-            ? `Delete deliverable "${deletingDeliverable.name}"? This action cannot be undone.`
+          state.deletingDeliverable
+            ? `Delete deliverable "${state.deletingDeliverable.name}"? This action cannot be undone.`
             : ""
         }
-        isLoading={deleteLoading}
+        isLoading={state.deleteLoading}
       />
 
       {/* Delete attachment dialog */}
       <DeleteConfirmDialog
-        open={deleteAttOpen}
-        onOpenChange={setDeleteAttOpen}
+        open={state.deleteAttOpen}
+        onOpenChange={(open) => !open && dispatch({ type: "CLOSE_DELETE_ATT" })}
         onConfirm={handleDeleteAttachment}
         title="Delete Attachment"
         description={
-          deletingAttachment
-            ? `Delete file "${deletingAttachment.attachment.name}"? This action cannot be undone.`
+          state.deletingAttachment
+            ? `Delete file "${state.deletingAttachment.attachment.name}"? This action cannot be undone.`
             : ""
         }
-        isLoading={deleteAttLoading}
+        isLoading={state.deleteAttLoading}
       />
     </div>
   )

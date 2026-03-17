@@ -42,15 +42,18 @@ export function LookupSelectField({
   disabled,
 }: LookupSelectFieldProps) {
   const [items, setItems] = useState<LookupItem[]>([])
+  const [isLoading, setIsLoading] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [creating, setCreating] = useState(false)
 
   const fetchItems = useCallback(async () => {
+    setIsLoading(true)
     const res = await api.get<LookupItem[]>(`${apiPath}?isActive=true&limit=100`)
     const paginated = res as CursorPaginatedResult<LookupItem>
     if (paginated.success) {
       setItems(paginated.data)
     }
+    setIsLoading(false)
   }, [apiPath])
 
   useEffect(() => {
@@ -98,9 +101,9 @@ export function LookupSelectField({
     <div className="grid gap-2">
       <Label>{label}</Label>
       <div className="flex gap-2">
-        <Select value={value} onValueChange={onChange} disabled={disabled}>
+        <Select value={value} onValueChange={onChange} disabled={disabled || isLoading}>
           <SelectTrigger className="flex-1">
-            <SelectValue placeholder={`Select ${label.toLowerCase()}...`} />
+            <SelectValue placeholder={isLoading ? "Loading..." : `Select ${label.toLowerCase()}...`} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="none">None</SelectItem>

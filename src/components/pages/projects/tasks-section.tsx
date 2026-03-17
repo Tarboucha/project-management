@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useReducer } from "react"
 import Link from "next/link"
 import { api } from "@/lib/utils/api-client"
 import { useAuthStore } from "@/lib/stores/auth-store"
@@ -45,40 +45,136 @@ interface TasksSectionProps {
   projectRole?: "DIRECTOR" | "MANAGER" | "CONTRIBUTOR"
 }
 
+// ── State & Actions ──────────────────────────────────────────
+
+interface TasksState {
+  tasks: Task[]
+  isLoading: boolean
+  fetchKey: number
+  // Sorting
+  sortBy: string
+  sortOrder: "asc" | "desc"
+  // Filters
+  search: string
+  stateFilter: string
+  priorityFilter: string
+  // Dialogs
+  formOpen: boolean
+  editingTask: Task | null
+  deleteOpen: boolean
+  deletingTask: Task | null
+  deleteLoading: boolean
+  historyOpen: boolean
+  historyTask: Task | null
+  // Progress
+  progressTaskId: string | null
+  progressValue: number
+  savingProgress: boolean
+}
+
+type TasksAction =
+  | { type: "SET_TASKS"; tasks: Task[] }
+  | { type: "UPDATE_TASK_PROGRESS"; taskId: string; progress: number }
+  | { type: "REFETCH" }
+  | { type: "SET_SORT"; field: string }
+  | { type: "SET_SEARCH"; value: string }
+  | { type: "SET_STATE_FILTER"; value: string }
+  | { type: "SET_PRIORITY_FILTER"; value: string }
+  | { type: "OPEN_CREATE" }
+  | { type: "OPEN_EDIT"; task: Task }
+  | { type: "CLOSE_FORM" }
+  | { type: "OPEN_DELETE"; task: Task }
+  | { type: "CLOSE_DELETE" }
+  | { type: "SET_DELETE_LOADING"; value: boolean }
+  | { type: "OPEN_HISTORY"; task: Task }
+  | { type: "CLOSE_HISTORY" }
+  | { type: "OPEN_PROGRESS"; taskId: string; value: number }
+  | { type: "CLOSE_PROGRESS" }
+  | { type: "SET_PROGRESS_VALUE"; value: number }
+  | { type: "SET_SAVING_PROGRESS"; value: boolean }
+
+const initialState: TasksState = {
+  tasks: [],
+  isLoading: true,
+  fetchKey: 0,
+  sortBy: "taskOrder",
+  sortOrder: "asc",
+  search: "",
+  stateFilter: "all",
+  priorityFilter: "all",
+  formOpen: false,
+  editingTask: null,
+  deleteOpen: false,
+  deletingTask: null,
+  deleteLoading: false,
+  historyOpen: false,
+  historyTask: null,
+  progressTaskId: null,
+  progressValue: 0,
+  savingProgress: false,
+}
+
+function reducer(state: TasksState, action: TasksAction): TasksState {
+  switch (action.type) {
+    case "SET_TASKS":
+      return { ...state, tasks: action.tasks, isLoading: false }
+    case "UPDATE_TASK_PROGRESS":
+      return {
+        ...state,
+        tasks: state.tasks.map((t) =>
+          t.id === action.taskId
+            ? { ...t, version: t.version + 1, progress: action.progress }
+            : t
+        ),
+        progressTaskId: null,
+        savingProgress: false,
+      }
+    case "REFETCH":
+      return { ...state, isLoading: true, fetchKey: state.fetchKey + 1 }
+    case "SET_SORT":
+      if (state.sortBy === action.field) {
+        return { ...state, isLoading: true, sortOrder: state.sortOrder === "asc" ? "desc" : "asc" }
+      }
+      return { ...state, isLoading: true, sortBy: action.field, sortOrder: "asc" }
+    case "SET_SEARCH":
+      return { ...state, search: action.value }
+    case "SET_STATE_FILTER":
+      return { ...state, stateFilter: action.value }
+    case "SET_PRIORITY_FILTER":
+      return { ...state, priorityFilter: action.value }
+    case "OPEN_CREATE":
+      return { ...state, formOpen: true, editingTask: null }
+    case "OPEN_EDIT":
+      return { ...state, formOpen: true, editingTask: action.task }
+    case "CLOSE_FORM":
+      return { ...state, formOpen: false, editingTask: null }
+    case "OPEN_DELETE":
+      return { ...state, deleteOpen: true, deletingTask: action.task }
+    case "CLOSE_DELETE":
+      return { ...state, deleteOpen: false, deletingTask: null, deleteLoading: false }
+    case "SET_DELETE_LOADING":
+      return { ...state, deleteLoading: action.value }
+    case "OPEN_HISTORY":
+      return { ...state, historyOpen: true, historyTask: action.task }
+    case "CLOSE_HISTORY":
+      return { ...state, historyOpen: false, historyTask: null }
+    case "OPEN_PROGRESS":
+      return { ...state, progressTaskId: action.taskId, progressValue: action.value }
+    case "CLOSE_PROGRESS":
+      return { ...state, progressTaskId: null }
+    case "SET_PROGRESS_VALUE":
+      return { ...state, progressValue: action.value }
+    case "SET_SAVING_PROGRESS":
+      return { ...state, savingProgress: action.value }
+  }
+}
+
+// ── Component ────────────────────────────────────────────────
+
 export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
   const { isAdmin } = useAuthStore()
   const admin = isAdmin()
-
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [fetchKey, setFetchKey] = useState(0)
-
-  // Sorting
-  const [sortBy, setSortBy] = useState("taskOrder")
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
-
-  // Filters
-  const [search, setSearch] = useState("")
-  const [stateFilter, setStateFilter] = useState("all")
-  const [priorityFilter, setPriorityFilter] = useState("all")
-
-  // Create/Edit dialog
-  const [formOpen, setFormOpen] = useState(false)
-  const [editingTask, setEditingTask] = useState<Task | null>(null)
-
-  // Delete dialog
-  const [deleteOpen, setDeleteOpen] = useState(false)
-  const [deletingTask, setDeletingTask] = useState<Task | null>(null)
-  const [deleteLoading, setDeleteLoading] = useState(false)
-
-  // History dialog
-  const [historyOpen, setHistoryOpen] = useState(false)
-  const [historyTask, setHistoryTask] = useState<Task | null>(null)
-
-  // Progress editing
-  const [progressTaskId, setProgressTaskId] = useState<string | null>(null)
-  const [progressValue, setProgressValue] = useState(0)
-  const [savingProgress, setSavingProgress] = useState(false)
+  const [state, dispatch] = useReducer(reducer, initialState)
 
   const canManage = admin || projectRole === "DIRECTOR" || projectRole === "MANAGER"
 
@@ -87,12 +183,12 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
 
     const doFetch = async () => {
       const params = new URLSearchParams()
-      if (search) params.set("search", search)
-      if (stateFilter !== "all") params.set("state", stateFilter)
-      if (priorityFilter !== "all") params.set("priority", priorityFilter)
+      if (state.search) params.set("search", state.search)
+      if (state.stateFilter !== "all") params.set("state", state.stateFilter)
+      if (state.priorityFilter !== "all") params.set("priority", state.priorityFilter)
       params.set("limit", "50")
-      params.set("sortBy", sortBy)
-      params.set("sortOrder", sortOrder)
+      params.set("sortBy", state.sortBy)
+      params.set("sortOrder", state.sortOrder)
 
       const res = await api.get<Task[]>(
         `/api/projects/${projectId}/tasks?${params.toString()}`
@@ -100,73 +196,54 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
       if (cancelled) return
       const paginated = res as CursorPaginatedResult<Task>
       if (paginated.success) {
-        setTasks(paginated.data)
+        dispatch({ type: "SET_TASKS", tasks: paginated.data })
       }
-      setIsLoading(false)
     }
 
     doFetch()
     return () => { cancelled = true }
-  }, [projectId, fetchKey, search, stateFilter, priorityFilter, sortBy, sortOrder])
+  }, [projectId, state.fetchKey, state.search, state.stateFilter, state.priorityFilter, state.sortBy, state.sortOrder])
 
-  const refetch = () => {
-    setIsLoading(true)
-    setFetchKey((k) => k + 1)
-  }
+  const refetch = () => dispatch({ type: "REFETCH" })
 
   const handleDelete = async () => {
-    if (!deletingTask) return
-    setDeleteLoading(true)
-    const res = await api.delete(`/api/projects/${projectId}/tasks/${deletingTask.id}`)
+    if (!state.deletingTask) return
+    dispatch({ type: "SET_DELETE_LOADING", value: true })
+    const res = await api.delete(`/api/projects/${projectId}/tasks/${state.deletingTask.id}`)
     if (res.success) {
       toast.success("Task deleted")
       refetch()
     } else {
       toast.error("Failed to delete task")
     }
-    setDeleteLoading(false)
-    setDeleteOpen(false)
-    setDeletingTask(null)
+    dispatch({ type: "CLOSE_DELETE" })
   }
 
   const handleProgressSave = async (taskId: string) => {
-    const task = tasks.find((t) => t.id === taskId)
+    const task = state.tasks.find((t) => t.id === taskId)
     if (!task) return
-    setSavingProgress(true)
+    dispatch({ type: "SET_SAVING_PROGRESS", value: true })
     const res = await api.patch(`/api/projects/${projectId}/tasks/${taskId}`, {
       version: task.version,
-      progress: progressValue,
+      progress: state.progressValue,
     })
     if (res.success) {
       toast.success("Progress updated")
-      setTasks((prev) =>
-        prev.map((t) => (t.id === taskId ? { ...t, version: t.version + 1, progress: progressValue } : t))
-      )
-      setProgressTaskId(null)
+      dispatch({ type: "UPDATE_TASK_PROGRESS", taskId, progress: state.progressValue })
     } else {
       toast.error("Failed to update progress")
-    }
-    setSavingProgress(false)
-  }
-
-  const toggleSort = (field: string) => {
-    setIsLoading(true)
-    if (sortBy === field) {
-      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
-    } else {
-      setSortBy(field)
-      setSortOrder("asc")
+      dispatch({ type: "SET_SAVING_PROGRESS", value: false })
     }
   }
 
   const sortIcon = (field: string) => {
-    if (sortBy !== field) return null
-    return sortOrder === "asc"
+    if (state.sortBy !== field) return null
+    return state.sortOrder === "asc"
       ? <ArrowUp className="inline h-3.5 w-3.5 ml-1" />
       : <ArrowDown className="inline h-3.5 w-3.5 ml-1" />
   }
 
-  if (isLoading) {
+  if (state.isLoading) {
     return (
       <div className="space-y-3">
         <Skeleton className="h-8 w-32" />
@@ -180,14 +257,11 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Tasks ({tasks.length})</h2>
+        <h2 className="text-lg font-semibold">Tasks ({state.tasks.length})</h2>
         {canManage && (
           <Button
             size="sm"
-            onClick={() => {
-              setEditingTask(null)
-              setFormOpen(true)
-            }}
+            onClick={() => dispatch({ type: "OPEN_CREATE" })}
           >
             <Plus className="mr-2 h-4 w-4" />
             New Task
@@ -202,11 +276,11 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
           <Input
             placeholder="Search tasks..."
             className="pl-8 w-[200px]"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={state.search}
+            onChange={(e) => dispatch({ type: "SET_SEARCH", value: e.target.value })}
           />
         </div>
-        <Select value={stateFilter} onValueChange={setStateFilter}>
+        <Select value={state.stateFilter} onValueChange={(v) => dispatch({ type: "SET_STATE_FILTER", value: v })}>
           <SelectTrigger className="w-[130px]">
             <SelectValue placeholder="State" />
           </SelectTrigger>
@@ -216,7 +290,7 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
             <SelectItem value="ENDED">Ended</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+        <Select value={state.priorityFilter} onValueChange={(v) => dispatch({ type: "SET_PRIORITY_FILTER", value: v })}>
           <SelectTrigger className="w-[130px]">
             <SelectValue placeholder="Priority" />
           </SelectTrigger>
@@ -231,24 +305,24 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
         </Select>
       </div>
 
-      {tasks.length === 0 ? (
+      {state.tasks.length === 0 ? (
         <p className="text-sm text-muted-foreground">No tasks found.</p>
       ) : (
         <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12 cursor-pointer select-none" onClick={() => toggleSort("taskOrder")}>Ord{sortIcon("taskOrder")}</TableHead>
-                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("objective")}>Objective{sortIcon("objective")}</TableHead>
-                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("priority")}>Priority{sortIcon("priority")}</TableHead>
-                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("state")}>State{sortIcon("state")}</TableHead>
-                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("progress")}>Progress{sortIcon("progress")}</TableHead>
+                <TableHead className="w-12 cursor-pointer select-none" onClick={() => dispatch({ type: "SET_SORT", field: "taskOrder" })}>Ord{sortIcon("taskOrder")}</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => dispatch({ type: "SET_SORT", field: "objective" })}>Objective{sortIcon("objective")}</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => dispatch({ type: "SET_SORT", field: "priority" })}>Priority{sortIcon("priority")}</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => dispatch({ type: "SET_SORT", field: "state" })}>State{sortIcon("state")}</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => dispatch({ type: "SET_SORT", field: "progress" })}>Progress{sortIcon("progress")}</TableHead>
                 <TableHead>Owner</TableHead>
                 {canManage && <TableHead className="w-24" />}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tasks.map((task) => (
+              {state.tasks.map((task) => (
                 <TableRow key={task.id}>
                   <TableCell className="text-muted-foreground">{task.taskOrder}</TableCell>
                   <TableCell className="font-medium max-w-[250px]">
@@ -270,13 +344,12 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
                   <TableCell>
                     {canManage ? (
                       <Popover
-                        open={progressTaskId === task.id}
+                        open={state.progressTaskId === task.id}
                         onOpenChange={(open) => {
                           if (open) {
-                            setProgressTaskId(task.id)
-                            setProgressValue(task.progress)
+                            dispatch({ type: "OPEN_PROGRESS", taskId: task.id, value: task.progress })
                           } else {
-                            setProgressTaskId(null)
+                            dispatch({ type: "CLOSE_PROGRESS" })
                           }
                         }}
                       >
@@ -290,11 +363,11 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <span className="text-sm font-medium">Progress</span>
-                              <span className="text-sm text-muted-foreground">{progressValue}%</span>
+                              <span className="text-sm text-muted-foreground">{state.progressValue}%</span>
                             </div>
                             <Slider
-                              value={[progressValue]}
-                              onValueChange={([v]) => setProgressValue(v)}
+                              value={[state.progressValue]}
+                              onValueChange={([v]) => dispatch({ type: "SET_PROGRESS_VALUE", value: v })}
                               min={0}
                               max={100}
                               step={5}
@@ -302,11 +375,11 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
                             <Button
                               size="sm"
                               className="w-full"
-                              disabled={savingProgress || progressValue === task.progress}
+                              disabled={state.savingProgress || state.progressValue === task.progress}
                               onClick={() => handleProgressSave(task.id)}
                             >
                               <Check className="mr-2 h-3 w-3" />
-                              {savingProgress ? "Saving..." : "Save"}
+                              {state.savingProgress ? "Saving..." : "Save"}
                             </Button>
                           </div>
                         </PopoverContent>
@@ -333,20 +406,14 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => {
-                            setHistoryTask(task)
-                            setHistoryOpen(true)
-                          }}
+                          onClick={() => dispatch({ type: "OPEN_HISTORY", task })}
                         >
                           <History className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => {
-                            setEditingTask(task)
-                            setFormOpen(true)
-                          }}
+                          onClick={() => dispatch({ type: "OPEN_EDIT", task })}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -354,10 +421,7 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
                           variant="ghost"
                           size="sm"
                           className="text-destructive"
-                          onClick={() => {
-                            setDeletingTask(task)
-                            setDeleteOpen(true)
-                          }}
+                          onClick={() => dispatch({ type: "OPEN_DELETE", task })}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -372,32 +436,32 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
       )}
 
       <TaskFormDialog
-        open={formOpen}
-        onOpenChange={setFormOpen}
+        open={state.formOpen}
+        onOpenChange={(open) => !open && dispatch({ type: "CLOSE_FORM" })}
         onSuccess={refetch}
         projectId={projectId}
-        task={editingTask ?? undefined}
+        task={state.editingTask ?? undefined}
       />
 
       <DeleteConfirmDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
+        open={state.deleteOpen}
+        onOpenChange={(open) => !open && dispatch({ type: "CLOSE_DELETE" })}
         onConfirm={handleDelete}
         title="Delete Task"
         description={
-          deletingTask
-            ? `Delete task "${deletingTask.objective}"? This action cannot be undone.`
+          state.deletingTask
+            ? `Delete task "${state.deletingTask.objective}"? This action cannot be undone.`
             : ""
         }
-        isLoading={deleteLoading}
+        isLoading={state.deleteLoading}
       />
 
       <AuditLogDialog
-        open={historyOpen}
-        onOpenChange={setHistoryOpen}
+        open={state.historyOpen}
+        onOpenChange={(open) => !open && dispatch({ type: "CLOSE_HISTORY" })}
         tableName="task"
-        recordId={historyTask?.id ?? ""}
-        entityLabel={historyTask?.objective ?? "Task"}
+        recordId={state.historyTask?.id ?? ""}
+        entityLabel={state.historyTask?.objective ?? "Task"}
         apiBasePath={`/api/projects/${projectId}/audit-log`}
       />
     </div>
