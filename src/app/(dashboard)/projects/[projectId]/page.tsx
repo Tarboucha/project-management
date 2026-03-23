@@ -19,7 +19,8 @@ import { TasksSection } from "@/components/pages/projects/tasks-section"
 import { TodosSection } from "@/components/pages/projects/todos-section"
 import { ReviewsSection } from "@/components/pages/projects/reviews-section"
 import { AuditLogSection } from "@/components/pages/shared/audit-log-section"
-import { ArrowLeft, Check, FileDown, Pencil, Trash2 } from "lucide-react"
+import { ArrowLeft, Check, Pencil, Trash2 } from "lucide-react"
+import { ExportMenu } from "@/components/shared/export-menu"
 import { toast } from "sonner"
 import type { ProjectDetail } from "@/types"
 import { formatDate } from "@/lib/utils/format"
@@ -156,14 +157,7 @@ export default function ProjectDetailPage() {
           )}
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.open(`/api/projects/${projectId}/report`)}
-          >
-            <FileDown className="mr-2 h-4 w-4" />
-            PDF
-          </Button>
+          <ExportMenu pdfUrl={`/api/projects/${projectId}/report`} />
           {canEdit && (
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
               <Pencil className="mr-2 h-4 w-4" />

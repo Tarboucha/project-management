@@ -23,7 +23,8 @@ import { ProgramFormDialog } from "@/components/pages/programs/program-form-dial
 import { ProjectFormDialog } from "@/components/pages/projects/project-form-dialog"
 import { AuditLogSection } from "@/components/pages/shared/audit-log-section"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, Plus, Pencil, Trash2, Briefcase, FileDown, ArrowUp, ArrowDown } from "lucide-react"
+import { ArrowLeft, Plus, Pencil, Trash2, Briefcase, ArrowUp, ArrowDown } from "lucide-react"
+import { ExportMenu } from "@/components/shared/export-menu"
 import { toast } from "sonner"
 import type { Program } from "@/types"
 import type { ProjectListItem as Project } from "@/types"
@@ -156,12 +157,10 @@ export default function ProgramDetailPage() {
           )}
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" asChild>
-            <a href={`/api/programs/${programId}/report`} target="_blank" rel="noopener noreferrer">
-              <FileDown className="mr-2 h-4 w-4" />
-              PDF
-            </a>
-          </Button>
+          <ExportMenu
+            pdfUrl={`/api/programs/${programId}/report`}
+            csvUrl={`/api/programs/${programId}/export-csv`}
+          />
           {isAdmin() && (
             <>
               <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
