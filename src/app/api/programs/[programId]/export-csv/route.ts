@@ -5,11 +5,9 @@ import { withAnyAuth } from "@/lib/utils/api-route-helper"
 
 type Params = { programId: string }
 
-function escapeCSV(value: string): string {
-  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
-    return `"${value.replace(/"/g, '""')}"`
-  }
-  return value
+function escapeField(value: string): string {
+  // Always wrap in quotes to safely handle tabs, newlines, and special chars
+  return `"${value.replace(/"/g, '""')}"`
 }
 
 function formatDate(value: Date | null | undefined): string {
@@ -63,28 +61,32 @@ export const GET = withAnyAuth<Params>(async (actor, _request: NextRequest, para
 
   const headers = ["Category", "Activity", "Theme", "Code", "Name", "Objective", "Director", "Manager", "State", "Start Date", "End Date", "Progress"]
 
-  const rows = result.projects.map((p) => [
-    escapeCSV(p.category?.name ?? ""),
-    escapeCSV(p.activity?.name ?? ""),
-    escapeCSV(p.theme?.name ?? ""),
-    escapeCSV(p.projectCode ?? ""),
-    escapeCSV(p.name),
-    escapeCSV(p.objective ?? ""),
-    escapeCSV(findMemberByRole(p.members, "DIRECTOR")),
-    escapeCSV(findMemberByRole(p.members, "MANAGER")),
-    escapeCSV(p.state),
-    escapeCSV(formatDate(p.startDate)),
-    escapeCSV(formatDate(p.endDate)),
-    `${p.progress}%`,
-  ].join(","))
+  const SEP = "\t"
 
-  const csv = [headers.join(","), ...rows].join("\n")
+  const rows = result.projects.map((p) => [
+    escapeField(p.category?.name ?? ""),
+    escapeField(p.activity?.name ?? ""),
+    escapeField(p.theme?.name ?? ""),
+    escapeField(p.projectCode ?? ""),
+    escapeField(p.name),
+    escapeField(p.objective ?? ""),
+    escapeField(findMemberByRole(p.members, "DIRECTOR")),
+    escapeField(findMemberByRole(p.members, "MANAGER")),
+    escapeField(p.state),
+    escapeField(formatDate(p.startDate)),
+    escapeField(formatDate(p.endDate)),
+    `${p.progress}%`,
+  ].join(SEP))
+
+  // UTF-8 BOM ensures Excel correctly reads French characters (é, è, ê, etc.)
+  const BOM = "\uFEFF"
+  const tsv = BOM + [headers.join(SEP), ...rows].join("\n")
 
   const safeName = result.program.name.replace(/[^a-zA-Z0-9-_ ]/g, "").replace(/\s+/g, "-")
 
-  return new NextResponse(csv, {
+  return new NextResponse(tsv, {
     headers: {
-      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Type": "text/tab-separated-values; charset=utf-8",
       "Content-Disposition": `attachment; filename="program-${safeName}-projects.csv"`,
     },
   })
