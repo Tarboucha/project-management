@@ -179,7 +179,9 @@ export function ProjectFormDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="WAITING">Waiting</SelectItem>
                   <SelectItem value="ENDED">Ended</SelectItem>
+                  <SelectItem value="CANCELED">Canceled</SelectItem>
                 </SelectContent>
               </Select>
             </div>

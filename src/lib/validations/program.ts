@@ -14,7 +14,7 @@ export const updateProgramSchema = z.object({
   version: z.number().int().positive(),
   name: z.string().min(1).max(255).optional(),
   description: z.string().optional(),
-  state: z.enum(["ACTIVE", "ENDED"]).optional(),
+  state: z.enum(["ACTIVE", "WAITING", "ENDED", "CANCELED"]).optional(),
   startDate: z.string().date("Invalid date format (YYYY-MM-DD)").optional(),
   endDate: z.string().date("Invalid date format (YYYY-MM-DD)").optional(),
   budgetEstimated: z.number().positive("Budget must be positive").optional(),

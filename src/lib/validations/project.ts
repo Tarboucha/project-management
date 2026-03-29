@@ -19,7 +19,7 @@ export const updateProjectSchema = z.object({
   name: z.string().min(1).max(255).optional(),
   projectCode: z.string().max(255).nullable().optional(),
   objective: z.string().optional(),
-  state: z.enum(["ACTIVE", "ENDED"]).optional(),
+  state: z.enum(["ACTIVE", "WAITING", "ENDED", "CANCELED"]).optional(),
   progress: z.number().int().min(0).max(100).optional(),
   activityId: z.string().uuid("Invalid activity ID").nullable().optional(),
   themeId: z.string().uuid("Invalid theme ID").nullable().optional(),

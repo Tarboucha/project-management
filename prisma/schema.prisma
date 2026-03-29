@@ -32,7 +32,9 @@ enum ProjectRole {
 
 enum EntityState {
   ACTIVE
+  WAITING
   ENDED
+  CANCELED
 
   @@map("entity_state")
   @@schema("public")

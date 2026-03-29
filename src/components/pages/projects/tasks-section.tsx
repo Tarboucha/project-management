@@ -287,7 +287,9 @@ export function TasksSection({ projectId, projectRole }: TasksSectionProps) {
           <SelectContent>
             <SelectItem value="all">All States</SelectItem>
             <SelectItem value="ACTIVE">Active</SelectItem>
+            <SelectItem value="WAITING">Waiting</SelectItem>
             <SelectItem value="ENDED">Ended</SelectItem>
+            <SelectItem value="CANCELED">Canceled</SelectItem>
           </SelectContent>
         </Select>
         <Select value={state.priorityFilter} onValueChange={(v) => dispatch({ type: "SET_PRIORITY_FILTER", value: v })}>

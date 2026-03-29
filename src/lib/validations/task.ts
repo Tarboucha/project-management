@@ -19,7 +19,7 @@ export const updateTaskSchema = z.object({
   ownerId: z.string().uuid("Invalid owner ID").nullable().optional(),
   priority: z.enum(["LOW", "NORMAL", "MEDIUM", "HIGH", "URGENT"]).optional(),
   taskOrder: z.number().int("Order must be a whole number").min(1).optional(),
-  state: z.enum(["ACTIVE", "ENDED"]).optional(),
+  state: z.enum(["ACTIVE", "WAITING", "ENDED", "CANCELED"]).optional(),
   progress: z.number().min(0).max(100).optional(),
   startDate: z.string().date("Invalid date format (YYYY-MM-DD)").optional(),
   endDate: z.string().date("Invalid date format (YYYY-MM-DD)").optional(),

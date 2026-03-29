@@ -182,7 +182,9 @@ export default function ProgramsPage() {
           <SelectContent>
             <SelectItem value="all">All States</SelectItem>
             <SelectItem value="ACTIVE">Active</SelectItem>
+            <SelectItem value="WAITING">Waiting</SelectItem>
             <SelectItem value="ENDED">Ended</SelectItem>
+            <SelectItem value="CANCELED">Canceled</SelectItem>
           </SelectContent>
         </Select>
       </div>
